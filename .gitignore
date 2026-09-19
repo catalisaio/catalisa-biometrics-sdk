@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+packages/python/build/
+packages/python/*.egg-info/
+packages/python/src/*.egg-info/
+.verify/
+*.tgz

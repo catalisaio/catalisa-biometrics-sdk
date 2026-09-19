@@ -1,0 +1,58 @@
+{
+  "name": "@catalisa/biometrics-web",
+  "version": "0.1.0",
+  "description": "Captura do Catalisa Biometrics no navegador — link, iframe ou modal, com os eventos da página por postMessage",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/biometrics-web.umd.js",
+  "jsdelivr": "./dist/biometrics-web.umd.js",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./umd": "./dist/biometrics-web.umd.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup && node scripts/umd.mjs",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run clean && npm run typecheck && npm test && npm run build"
+  },
+  "keywords": [
+    "catalisa",
+    "biometrics",
+    "biometria",
+    "liveness",
+    "iframe",
+    "postMessage",
+    "kyc"
+  ],
+  "author": "Catalisa <contato@catalisa.io>",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}

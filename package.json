@@ -1,0 +1,19 @@
+{
+  "name": "catalisa-biometrics-sdk",
+  "private": true,
+  "description": "SDKs e exemplos de integração do Catalisa Biometrics",
+  "workspaces": [
+    "packages/node",
+    "packages/web"
+  ],
+  "scripts": {
+    "build": "npm run build -w @catalisa/biometrics -w @catalisa/biometrics-web",
+    "test": "npm test -w @catalisa/biometrics -w @catalisa/biometrics-web",
+    "typecheck": "npm run typecheck -w @catalisa/biometrics -w @catalisa/biometrics-web",
+    "test:python": "cd packages/python && python3 -m pytest -q",
+    "verify:snippets": "bash scripts/verify-snippets.sh"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
