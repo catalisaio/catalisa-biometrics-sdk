@@ -42,35 +42,35 @@ def resp(status, body, headers=None):
     return HttpResponse(status, headers or {"Content-Type": "application/json"}, json.dumps(body).encode())
 
 
-def test_cria_sessao_com_x_api_key_e_base_padrao():
+def test_create_session_with_x_api_key_and_default_base():
     t = FakeTransport(resp(201, {"data": ENVELOPE}))
     bio = Biometrics("pk.sk", transport=t)
-    s = bio.sessions.create(flow="LIVENESS_ONLY", purpose="abertura de conta", metadata={"canal": "app"})
+    s = bio.sessions.create(flow="LIVENESS_ONLY", purpose="abertura de conta", metadata={"channel": "app"})
     assert s["handoff"]["captureUrl"].startswith("https://")
     c = t.calls[0]
     assert (c["method"], c["url"]) == ("POST", "https://api.biometrics.catalisa.app/v1/sessions")
     assert c["headers"]["X-API-Key"] == "pk.sk"
-    assert json.loads(c["body"]) == {"flow": "LIVENESS_ONLY", "purpose": "abertura de conta", "metadata": {"canal": "app"}}
+    assert json.loads(c["body"]) == {"flow": "LIVENESS_ONLY", "purpose": "abertura de conta", "metadata": {"channel": "app"}}
 
 
-def test_base_url_subconta_token_e_idempotency_key():
+def test_base_url_subaccount_token_and_idempotency_key():
     t = FakeTransport(resp(201, {"data": ENVELOPE}))
     bio = Biometrics(access_token="jwt", base_url="https://biometrics.bb.stg.catalisa.app/biometrics/api/v1/", subaccount_id="sub-1", transport=t)
-    bio.sessions.create(flow="LIVENESS_ONLY", purpose="abc", idempotency_key="pedido-1")
+    bio.sessions.create(flow="LIVENESS_ONLY", purpose="abc", idempotency_key="order-1")
     c = t.calls[0]
     assert c["url"] == "https://biometrics.bb.stg.catalisa.app/biometrics/api/v1/sessions"
     assert c["headers"]["Authorization"] == "Bearer jwt"
     assert "X-API-Key" not in c["headers"]
     assert c["headers"]["X-Subaccount-Id"] == "sub-1"
-    assert c["headers"]["Idempotency-Key"] == "pedido-1"
+    assert c["headers"]["Idempotency-Key"] == "order-1"
 
 
-def test_exige_credencial():
+def test_requires_credential():
     with pytest.raises(ValueError):
         Biometrics()
 
 
-def test_caminhos():
+def test_paths():
     t = FakeTransport(resp(200, {"data": ENVELOPE}))
     bio = Biometrics("k", transport=t)
     bio.sessions.get("a/b")
@@ -101,14 +101,14 @@ def test_list_query():
     "status,body,klass,code",
     [
         (401, {"error": "UNAUTHORIZED", "message": "Invalid API key", "details": {"code": "API_KEY_INVALID"}}, AuthenticationError, "API_KEY_INVALID"),
-        (402, {"error": "PAYMENT_REQUIRED", "message": "Cota", "details": {"code": "QUOTA_EXCEEDED", "monthlyQuota": 5, "used": 5}}, QuotaExceededError, "QUOTA_EXCEEDED"),
-        (403, {"error": "FORBIDDEN", "message": "Suspensa", "details": {"code": "SUBACCOUNT_SUSPENDED"}}, SubaccountSuspendedError, "SUBACCOUNT_SUSPENDED"),
+        (402, {"error": "PAYMENT_REQUIRED", "message": "Quota", "details": {"code": "QUOTA_EXCEEDED", "monthlyQuota": 5, "used": 5}}, QuotaExceededError, "QUOTA_EXCEEDED"),
+        (403, {"error": "FORBIDDEN", "message": "Suspended", "details": {"code": "SUBACCOUNT_SUSPENDED"}}, SubaccountSuspendedError, "SUBACCOUNT_SUSPENDED"),
         (403, {"error": "FORBIDDEN", "message": "Insufficient permissions"}, PermissionDeniedError, "FORBIDDEN"),
         (400, {"error": "VALIDATION", "details": {}}, ValidationError, "VALIDATION"),
         (404, {"error": "NOT_FOUND", "message": "x"}, NotFoundError, "NOT_FOUND"),
     ],
 )
-def test_erros_tipados(status, body, klass, code):
+def test_typed_errors(status, body, klass, code):
     t = FakeTransport(resp(status, body, {"X-Trace-Id": "tr-9"}))
     with pytest.raises(klass) as e:
         Biometrics("k", transport=t, sleep=lambda s: None).sessions.create(flow="LIVENESS_ONLY", purpose="abc")
@@ -123,14 +123,14 @@ def test_quota_details():
     assert e.value.details["used"] == 5
 
 
-def test_429_formato_do_limitador():
+def test_429_rate_limiter_shape():
     t = FakeTransport(resp(429, {"error": "too_many_requests", "error_description": "Rate limit exceeded.", "retry_after": 7}, {"Retry-After": "7"}))
     with pytest.raises(RateLimitError) as e:
         Biometrics("k", transport=t, max_retries=0).sessions.get("x")
     assert e.value.retry_after == 7 and e.value.message == "Rate limit exceeded."
 
 
-def test_leitura_repete_em_503_e_rede():
+def test_reads_retry_on_503_and_network():
     sleeps = []
     t = FakeTransport(resp(503, {"error": "SERVICE_UNAVAILABLE"}), ConnectionResetError("reset"), resp(200, {"data": ENVELOPE}))
     s = Biometrics("k", transport=t, sleep=sleeps.append).sessions.get("x")
@@ -138,14 +138,14 @@ def test_leitura_repete_em_503_e_rede():
     assert len(t.calls) == 3 and len(sleeps) == 2
 
 
-def test_desiste_apos_max_retries():
+def test_gives_up_after_max_retries():
     t = FakeTransport(resp(500, {"message": "Internal server error"}))
     with pytest.raises(ServerError):
         Biometrics("k", transport=t, sleep=lambda s: None, max_retries=2).sessions.get("x")
     assert len(t.calls) == 3
 
 
-def test_criacao_nao_repete_5xx_nem_rede():
+def test_creation_not_retried_on_5xx_or_network():
     t = FakeTransport(resp(503, {"error": "SERVICE_UNAVAILABLE"}))
     with pytest.raises(ServerError):
         Biometrics("k", transport=t, sleep=lambda s: None).sessions.create(flow="LIVENESS_ONLY", purpose="abc")
@@ -156,7 +156,7 @@ def test_criacao_nao_repete_5xx_nem_rede():
     assert e.value.code == "TIMEOUT" and len(t.calls) == 1
 
 
-def test_criacao_repete_em_429_com_retry_after():
+def test_creation_retried_on_429_with_retry_after():
     sleeps = []
     t = FakeTransport(resp(429, {"error": "too_many_requests"}, {"retry-after": "2"}), resp(201, {"data": ENVELOPE}))
     Biometrics("k", transport=t, sleep=sleeps.append).sessions.create(flow="LIVENESS_ONLY", purpose="abc")
@@ -172,8 +172,8 @@ def test_evidence_verify_offline(vectors):
     assert t.calls[1]["url"].endswith("/evidence-keys")
 
 
-def test_transporte_urllib_real_contra_servidor_local():
-    """O transporte padrão (urllib) contra um HTTP de verdade: 201, 402 e JSON."""
+def test_real_urllib_transport_against_local_server():
+    """The default transport (urllib) against a real HTTP server: 201, 402 and JSON."""
     import threading
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -184,8 +184,8 @@ def test_transporte_urllib_real_contra_servidor_local():
         def do_POST(self):
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(n))
-            if self.headers.get("X-Subaccount-Id") == "cheia":
-                out, code = {"error": "PAYMENT_REQUIRED", "message": "Cota", "details": {"code": "QUOTA_EXCEEDED"}}, 402
+            if self.headers.get("X-Subaccount-Id") == "full":
+                out, code = {"error": "PAYMENT_REQUIRED", "message": "Quota", "details": {"code": "QUOTA_EXCEEDED"}}, 402
             else:
                 out, code = {"data": dict(ENVELOPE, purpose=body["purpose"])}, 201
             raw = json.dumps(out).encode()
@@ -202,12 +202,12 @@ def test_transporte_urllib_real_contra_servidor_local():
         base = f"http://127.0.0.1:{srv.server_port}/v1"
         assert Biometrics("k", base_url=base).sessions.create(flow="LIVENESS_ONLY", purpose="real")["purpose"] == "real"
         with pytest.raises(QuotaExceededError):
-            Biometrics("k", base_url=base, subaccount_id="cheia").sessions.create(flow="LIVENESS_ONLY", purpose="x")
+            Biometrics("k", base_url=base, subaccount_id="full").sessions.create(flow="LIVENESS_ONLY", purpose="x")
     finally:
         srv.shutdown()
 
 
-def test_transporte_urllib_conexao_recusada_vira_api_connection_error():
+def test_urllib_connection_refused_becomes_api_connection_error():
     import socket
 
     s = socket.socket()

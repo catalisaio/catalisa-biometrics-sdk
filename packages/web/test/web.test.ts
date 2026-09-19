@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { openCapture, parseCaptureMessage, type CaptureEvent } from '../src'
 
 const CAPTURE_URL = 'https://biometrics.bb.stg.catalisa.app/biometrics/capture/eyJhbGciOi.token'
@@ -16,8 +18,8 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('parseCaptureMessage — eventos reais de capture-page/page.ts', () => {
-  it('step:<GESTO> vira step com gesto, índice e duração', () => {
+describe('parseCaptureMessage — real events from capture-page/page.ts', () => {
+  it('step:<GESTURE> becomes step with gesture, index and duration', () => {
     expect(parseCaptureMessage(msg('step:SMILE', { index: 0, total: 3, gesture: 'SMILE', durationMs: 5200 }))).toMatchObject({
       type: 'step',
       gesture: 'SMILE',
@@ -26,22 +28,31 @@ describe('parseCaptureMessage — eventos reais de capture-page/page.ts', () => 
       durationMs: 5200,
     })
   })
-  it('error com reason/name, guide com loaded', () => {
+  it('error with reason/name, guide with loaded', () => {
     expect(parseCaptureMessage(msg('error', { reason: 'camera', name: 'NotAllowedError' }))).toMatchObject({ type: 'error', reason: 'camera', name: 'NotAllowedError' })
     expect(parseCaptureMessage(msg('guide', { loaded: false, reason: 'TypeError' }))).toMatchObject({ type: 'guide', loaded: false, reason: 'TypeError' })
   })
   it('ready, capturing, submitted, retry, done, expired', () => {
     for (const e of ['ready', 'capturing', 'submitted', 'retry', 'done', 'expired']) expect(parseCaptureMessage(msg(e))?.type).toBe(e)
   })
-  it('evento novo passa como unknown; mensagem de outra fonte é ignorada', () => {
-    expect(parseCaptureMessage(msg('algo-novo'))).toMatchObject({ type: 'unknown', event: 'algo-novo' })
-    expect(parseCaptureMessage({ source: 'outro', event: 'done' })).toBeNull()
+  it('a new event passes through as unknown; messages from another source are ignored', () => {
+    expect(parseCaptureMessage(msg('something-new'))).toMatchObject({ type: 'unknown', event: 'something-new' })
+    expect(parseCaptureMessage({ source: 'other', event: 'done' })).toBeNull()
     expect(parseCaptureMessage('done')).toBeNull()
+  })
+  it('understands every event name the server page emits (list extracted from page.ts into vectors.json)', () => {
+    const vectors = JSON.parse(readFileSync(resolve(process.cwd(), '../../vectors/vectors.json'), 'utf8'))
+    const names: string[] = vectors.captureEvents
+    expect(names).toEqual(expect.arrayContaining(['capturing', 'done', 'error', 'ready', 'retry', 'submitted']))
+    for (const n of names) {
+      const parsed = parseCaptureMessage(msg(n.endsWith(':') ? `${n}BLINK` : n))
+      expect(parsed?.type, n).not.toBe('unknown')
+    }
   })
 })
 
 describe('openCapture — iframe', () => {
-  it('monta o iframe com allow="camera" no container e entrega eventos da origem certa', () => {
+  it('mounts the iframe with allow="camera" in the container and delivers events from the right origin', () => {
     const events: CaptureEvent[] = []
     const h = openCapture({ captureUrl: CAPTURE_URL, mode: 'iframe', container: '#slot', onEvent: (e) => events.push(e) })
     const f = document.querySelector('#slot iframe') as HTMLIFrameElement
@@ -54,17 +65,17 @@ describe('openCapture — iframe', () => {
     expect(events.map((e) => e.type)).toEqual(['ready', 'step'])
   })
 
-  it('ignora outra origem, outra janela e mensagem sem source catalisa-biometrics', () => {
+  it('ignores another origin, another window and messages without source catalisa-biometrics', () => {
     const onEvent = vi.fn()
     openCapture({ captureUrl: CAPTURE_URL, mode: 'iframe', container: '#slot', onEvent })
     post(msg('done'), 'https://evil.example')
     post(msg('done'), 'https://biometrics.bb.stg.catalisa.app.evil.example')
-    post(msg('done'), ORIGIN, window) // mesma origem declarada, mas não é o nosso iframe
+    post(msg('done'), ORIGIN, window) // same declared origin, but not our iframe
     post({ event: 'done' })
     expect(onEvent).not.toHaveBeenCalled()
   })
 
-  it('close() desmonta, para de ouvir e chama onClose("api") uma vez', () => {
+  it('close() unmounts, stops listening and calls onClose("api") once', () => {
     const onEvent = vi.fn()
     const onClose = vi.fn()
     const h = openCapture({ captureUrl: CAPTURE_URL, mode: 'iframe', container: '#slot', onEvent, onClose })
@@ -79,7 +90,7 @@ describe('openCapture — iframe', () => {
     expect(onEvent).not.toHaveBeenCalled()
   })
 
-  it('no iframe não fecha sozinho por padrão', () => {
+  it('does not auto-close in iframe mode by default', () => {
     vi.useFakeTimers()
     const onClose = vi.fn()
     openCapture({ captureUrl: CAPTURE_URL, mode: 'iframe', container: '#slot', onClose })
@@ -88,8 +99,8 @@ describe('openCapture — iframe', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('exige container existente e https', () => {
-    expect(() => openCapture({ captureUrl: CAPTURE_URL, mode: 'iframe', container: '#nao-existe' })).toThrow(/container/)
+  it('requires an existing container and https', () => {
+    expect(() => openCapture({ captureUrl: CAPTURE_URL, mode: 'iframe', container: '#missing' })).toThrow(/container/)
     expect(() => openCapture({ captureUrl: 'http://biometrics.example/capture/x', mode: 'iframe', container: '#slot' })).toThrow(/https/)
     expect(() => openCapture({ captureUrl: 'javascript:alert(1)', mode: 'iframe', container: '#slot' })).toThrow()
     expect(() => openCapture({ captureUrl: 'http://localhost:3034/biometrics/capture/x', mode: 'iframe', container: '#slot' })).not.toThrow()
@@ -97,7 +108,7 @@ describe('openCapture — iframe', () => {
 })
 
 describe('openCapture — modal', () => {
-  it('abre sobreposição com diálogo acessível; fecha sozinho 1,5 s após done', () => {
+  it('opens an overlay with an accessible dialog; auto-closes 1.5 s after done', () => {
     vi.useFakeTimers()
     const onClose = vi.fn()
     const events: string[] = []
@@ -115,7 +126,7 @@ describe('openCapture — modal', () => {
     expect(document.querySelector('.cbio-overlay')).toBeNull()
   })
 
-  it('botão fechar e Esc fecham com reason "user"', () => {
+  it('the close button and Esc close with reason "user"', () => {
     const onClose = vi.fn()
     openCapture({ captureUrl: CAPTURE_URL, onClose })
     ;(document.querySelector('.cbio-close') as HTMLButtonElement).click()
@@ -126,7 +137,7 @@ describe('openCapture — modal', () => {
     expect(document.querySelector('.cbio-overlay')).toBeNull()
   })
 
-  it('expired também fecha; autoCloseMs:false mantém aberto', () => {
+  it('expired also closes; autoCloseMs:false keeps it open', () => {
     vi.useFakeTimers()
     const onClose = vi.fn()
     openCapture({ captureUrl: CAPTURE_URL, onClose, autoCloseMs: 0 })
@@ -142,7 +153,7 @@ describe('openCapture — modal', () => {
 })
 
 describe('openCapture — redirect', () => {
-  it('navega a aba para a captureUrl e não monta iframe', () => {
+  it('navigates the tab to the captureUrl and mounts no iframe', () => {
     const assign = vi.fn()
     const original = window.location
     Object.defineProperty(window, 'location', { configurable: true, value: { ...original, assign } })

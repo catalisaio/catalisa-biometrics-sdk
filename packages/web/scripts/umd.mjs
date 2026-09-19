@@ -1,4 +1,4 @@
-// Embrulha o IIFE do tsup (`var CatalisaBiometrics=(()=>{...})();`) num UMD de verdade.
+// Wraps tsup's IIFE (`var CatalisaBiometrics=(()=>{...})();`) in a real UMD (AMD, CommonJS and the CatalisaBiometrics global).
 import { readFileSync, writeFileSync, rmSync } from 'node:fs'
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))

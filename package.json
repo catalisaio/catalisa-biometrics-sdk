@@ -1,7 +1,7 @@
 {
   "name": "catalisa-biometrics-sdk",
   "private": true,
-  "description": "SDKs e exemplos de integração do Catalisa Biometrics",
+  "description": "Catalisa Biometrics SDKs and integration snippets",
   "workspaces": [
     "packages/node",
     "packages/web"

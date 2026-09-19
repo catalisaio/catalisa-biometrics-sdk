@@ -1,7 +1,7 @@
-"""Verificação OFFLINE da evidência assinada (Ed25519), sem depender da Catalisa.
+"""OFFLINE verification of the signed evidence (Ed25519), without depending on Catalisa.
 
-    mensagem = f"{sessionId}|{attempt}|{bundleHash}|{signedAt}"
-    chave    = GET /evidence-keys → publicKeyPem do keyId da assinatura
+    message = f"{sessionId}|{attempt}|{bundleHash}|{signedAt}"
+    key     = GET /evidence-keys → publicKeyPem of the signature's keyId
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 {
   "name": "@catalisa/biometrics-web",
   "version": "0.1.0",
-  "description": "Captura do Catalisa Biometrics no navegador — link, iframe ou modal, com os eventos da página por postMessage",
+  "description": "Catalisa Biometrics capture in the browser — link, iframe or modal, with the page progress events over postMessage",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

@@ -1,7 +1,7 @@
 {
   "name": "@catalisa/biometrics",
   "version": "0.1.0",
-  "description": "SDK Node.js do Catalisa Biometrics — sessões de prova de vida e match facial, evidência assinada e verificação de webhook",
+  "description": "Catalisa Biometrics Node.js SDK — liveness and face-match sessions, signed evidence and webhook verification",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

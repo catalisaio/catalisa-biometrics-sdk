@@ -1,4 +1,4 @@
-"""Cliente HTTP do Catalisa Biometrics, só com a stdlib (urllib)."""
+"""Catalisa Biometrics HTTP client, standard library only (urllib)."""
 
 from __future__ import annotations
 
@@ -27,14 +27,14 @@ class HttpResponse:
     body: bytes
 
 
-#: (método, url, headers, corpo, timeout) -> HttpResponse. Injetável em teste.
+#: (method, url, headers, body, timeout) -> HttpResponse. Injectable in tests.
 Transport = Callable[[str, str, Dict[str, str], Optional[bytes], float], HttpResponse]
 
 
 def urllib_transport(method: str, url: str, headers: Dict[str, str], body: Optional[bytes], timeout: float) -> HttpResponse:
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as res:  # noqa: S310 (URL do próprio cliente)
+        with urllib.request.urlopen(req, timeout=timeout) as res:  # noqa: S310 (URL built by the client itself)
             return HttpResponse(res.status, dict(res.headers.items()), res.read())
     except urllib.error.HTTPError as e:
         return HttpResponse(e.code, dict(e.headers.items()) if e.headers else {}, e.read() or b"")
@@ -45,15 +45,15 @@ class _Sessions:
         self._c = client
 
     def create(self, *, flow: str, purpose: str, idempotency_key: Optional[str] = None, **fields: Any) -> Dict[str, Any]:
-        """Abre a sessão. Campos extras (``subjectRef``, ``reference``, ``customerId``, ``appearance``,
-        ``metadata``, ``enrollOnApprove``...) vão como no contrato do BB. Devolve o envelope com
-        ``handoff.captureUrl``. Não repete em 5xx/rede (evita sessão duplicada)."""
+        """Opens a session. Extra fields (``subjectRef``, ``reference``, ``customerId``, ``appearance``,
+        ``metadata``, ``enrollOnApprove``...) are sent as in the server contract. Returns the envelope
+        with ``handoff.captureUrl``. Not retried on 5xx/network errors (avoids duplicate sessions)."""
         body = {"flow": flow, "purpose": purpose, **fields}
         headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return self._c._request("POST", "/sessions", body=body, idempotent=False, headers=headers)["data"]
 
     def get(self, session_id: str) -> Dict[str, Any]:
-        """O envelope completo (status, decisão, checks, evidência)."""
+        """The full envelope (status, decision, checks, evidence)."""
         return self._c._request("GET", f"/sessions/{_enc(session_id)}", idempotent=True)["data"]
 
     def list(
@@ -98,21 +98,21 @@ class _Evidence:
         self._c = client
 
     def keys(self) -> List[Dict[str, Any]]:
-        """Chaves públicas Ed25519 da organização (inclui aposentadas)."""
+        """The organization's Ed25519 public keys (including retired ones)."""
         return self._c._request("GET", "/evidence-keys", idempotent=True)["data"]
 
     def verify(self, session_id: str, keys: Optional[List[Mapping[str, Any]]] = None) -> Dict[str, Any]:
-        """Confere a assinatura da evidência LOCALMENTE (Ed25519), com a chave pública."""
+        """Verifies the evidence signature LOCALLY (Ed25519) with the public key."""
         s = self._c.sessions.get(session_id)
         ev = s.get("evidence") or {}
         sig = ev.get("signature")
         if not sig:
-            raise BiometricsError("Sessão sem evidência assinada", status=0, code="EVIDENCE_NOT_SIGNED")
+            raise BiometricsError("Session has no signed evidence", status=0, code="EVIDENCE_NOT_SIGNED")
         return verify_evidence_signature(s["sessionId"], s["attempt"], ev["bundleHash"], sig, keys if keys is not None else self.keys())
 
 
 class Biometrics:
-    """Cliente do Catalisa Biometrics.
+    """Catalisa Biometrics client.
 
     >>> bio = Biometrics(api_key="prefixo.segredo")
     >>> s = bio.sessions.create(flow="LIVENESS_ONLY", purpose="abertura de conta")
@@ -132,7 +132,7 @@ class Biometrics:
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         if not api_key and not access_token:
-            raise ValueError("Biometrics: informe api_key (ou access_token)")
+            raise ValueError("Biometrics: api_key (or access_token) is required")
         self._api_key = api_key
         self._access_token = access_token
         self._base_url = base_url.rstrip("/")
@@ -144,7 +144,7 @@ class Biometrics:
         self.sessions = _Sessions(self)
         self.evidence = _Evidence(self)
 
-    # -- núcleo --------------------------------------------------------------
+    # -- core ----------------------------------------------------------------
 
     def _request(
         self,
@@ -198,11 +198,11 @@ class Biometrics:
         try:
             res = self._transport(method, url, headers, data, self._timeout)
         except (socket.timeout, TimeoutError) as e:
-            raise APIConnectionError(f"Sem resposta em {self._timeout} s", status=0, code="TIMEOUT") from e
+            raise APIConnectionError(f"No response within {self._timeout} s", status=0, code="TIMEOUT") from e
         except (urllib.error.URLError, OSError) as e:
             reason = getattr(e, "reason", e)
             code = "TIMEOUT" if isinstance(reason, (socket.timeout, TimeoutError)) else "CONNECTION"
-            raise APIConnectionError(f"Falha de conexão: {reason}", status=0, code=code) from e
+            raise APIConnectionError(f"Connection failed: {reason}", status=0, code=code) from e
         parsed: Any = None
         if res.body:
             try:
@@ -216,6 +216,6 @@ class Biometrics:
 
 def _enc(value: str) -> str:
     if not value:
-        raise ValueError("Biometrics: id vazio")
+        raise ValueError("Biometrics: empty id")
     return urllib.parse.quote(value, safe="")
 

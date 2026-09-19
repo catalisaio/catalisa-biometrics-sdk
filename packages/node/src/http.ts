@@ -14,7 +14,7 @@ export interface HttpOptions {
   subaccountId?: string
   fetch: FetchLike
   userAgent?: string
-  /** Para teste: substitui a espera entre tentativas. */
+  /** For tests: replaces the wait between attempts. */
   sleep?: (ms: number) => Promise<void>
 }
 
@@ -23,24 +23,25 @@ export interface RequestOptions {
   path: string
   query?: Record<string, string | number | undefined>
   body?: unknown
-  /** multipart (captura própria) — já montado; não passa por JSON. */
+  /** multipart (custom capture) — already built; not JSON-encoded. */
   form?: FormData
   headers?: Record<string, string>
   /**
-   * Pode repetir em 5xx e erro de rede? Só leituras. POST de criação NUNCA repete nesses casos:
-   * o BB não aceita Idempotency-Key, e repetir após um 5xx pode abrir duas sessões (e gastar cota).
-   * 429 repete sempre: o limitador recusa ANTES do handler, então nada foi feito.
+   * May it be retried on 5xx and network errors? Reads only. Session creation is NEVER retried
+   * in those cases: the server does not honor Idempotency-Key, and retrying after a 5xx could open
+   * two sessions (and consume quota twice). 429 is always retried: the rate limiter rejects BEFORE
+   * the handler runs, so nothing was done.
    */
   idempotent: boolean
   timeoutMs?: number
   signal?: AbortSignal
-  /** `false` = não envia a credencial do cliente (captura própria usa o captureToken). */
+  /** `false` = do not send the client credential (custom capture uses the captureToken). */
   auth?: boolean
 }
 
 export class HttpClient {
   constructor(private readonly opts: HttpOptions) {
-    if (!opts.apiKey && !opts.accessToken) throw new Error('Biometrics: informe apiKey (ou accessToken)')
+    if (!opts.apiKey && !opts.accessToken) throw new Error('Biometrics: apiKey (or accessToken) is required')
   }
 
   async request<T>(req: RequestOptions): Promise<T> {
@@ -104,7 +105,7 @@ export class HttpClient {
       res = await this.opts.fetch(url, { method: req.method, headers, body, signal: controller.signal })
     } catch (e) {
       const timedOut = controller.signal.aborted && !req.signal?.aborted
-      throw new ConnectionError(timedOut ? `Sem resposta em ${timeoutMs} ms` : `Falha de conexão: ${(e as Error).message}`, {
+      throw new ConnectionError(timedOut ? `No response within ${timeoutMs} ms` : `Connection failed: ${(e as Error).message}`, {
         status: 0,
         code: timedOut ? 'TIMEOUT' : 'CONNECTION',
       })

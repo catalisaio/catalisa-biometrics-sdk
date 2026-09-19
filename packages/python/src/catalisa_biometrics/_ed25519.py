@@ -1,8 +1,8 @@
-"""Verificação Ed25519 (RFC 8032 §5.1.7) só com a stdlib.
+"""Ed25519 verification (RFC 8032 §5.1.7) with the standard library only.
 
-Adaptado do código de referência da RFC 8032 §6 (domínio público). Só VERIFICA — não há
-chave privada aqui — então a falta de tempo constante não vaza segredo. Usado para
-conferir a evidência assinada do Biometrics sem depender da Catalisa nem de pacote externo.
+Adapted from the RFC 8032 §6 reference code (public domain). It only VERIFIES — there is no
+private key here — so the lack of constant-time arithmetic leaks no secret. Used to check the
+Biometrics signed evidence without depending on Catalisa or on any third-party package.
 """
 
 from __future__ import annotations
@@ -79,13 +79,13 @@ _G: Point = (_recover_x(_G_Y, 0) or 0, _G_Y, 1, (_recover_x(_G_Y, 0) or 0) * _G_
 
 
 def load_public_key(pem: str) -> bytes:
-    """``BEGIN PUBLIC KEY`` SPKI Ed25519 (o que ``GET /evidence-keys`` publica) → 32 bytes."""
+    """``BEGIN PUBLIC KEY`` Ed25519 SPKI (what ``GET /evidence-keys`` publishes) → 32 bytes."""
     m = re.search(r"-----BEGIN PUBLIC KEY-----(.+?)-----END PUBLIC KEY-----", pem, re.S)
     if not m:
-        raise ValueError("PEM de chave pública não encontrado")
+        raise ValueError("public key PEM not found")
     der = base64.b64decode("".join(m.group(1).split()))
     if len(der) != 44 or not der.startswith(_ED25519_SPKI_PREFIX):
-        raise ValueError("a chave não é Ed25519")
+        raise ValueError("the key is not Ed25519")
     return der[len(_ED25519_SPKI_PREFIX) :]
 
 

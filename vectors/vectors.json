@@ -1,26 +1,26 @@
 {
-  "generatedBy": "building-blocks-v2 origin/main — src/webhooks-engine/utils/crypto.ts (generateKeyPair, createSignaturePayload, signPayload) e src/biometrics/services/evidence-signature.service.ts (sign/publicKeys)",
+  "generatedBy": "building-blocks-v2 origin/main — src/webhooks-engine/utils/crypto.ts (generateKeyPair, createSignaturePayload, signPayload) and src/biometrics/services/evidence-signature.service.ts (sign/publicKeys)",
   "webhook": {
     "keys": {
-      "whk_dBJDx0JwizoQhkkb": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtXqPBZUgwGOsQ4ONUpeL\nTS4AA2jm54GJIuBMsdZvajcZA5df4TM2wk4AFtkIFV/YQvZ+FL3i10bHPVstWnBA\njGNwBpbRy6GG709tStXiMxtR5488Zj49XwBxJx7GXoOqOxquQIlgr3yNwf6/RzaH\nQMhU5fQOI/upF8BdL23zb0DfWpTULEnX14KXgiM2ghe0cSfVb+sy+iZLTr1rcQiP\n3WosE2+C5Lh6yll06DGFzHRDlbcsontjdKawzxoH9DkWLRJzIygooxWhm751a6aY\n+PLmkfJ4B0X6lDlJahDJsTSZ0yt85iwg6WrLWgRrbqkadzn5/JkaTtp854aeKl6D\nIwIDAQAB\n-----END PUBLIC KEY-----"
+      "whk_Ot2Q-eK1K7yYX3vR": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqC3hP5ESBp1W178mEn1i\nQgXKYDX6bvqtTximzKh29z55ohAWKzuXsEBwNnWV2y5Ehc3DVTSpluF1sNGwLeCf\nE4j5HE/uenda2Y+uJVD3IDz96w5x3cHyzbX3KWB/Hv209jYpZvM0r73bKFE7GJtx\nhcRV9oXOUKgyVKCfr6+qiK20Vm2720buJCn16gV33BzdeTBkdHIk3a4taBdWNGys\n9bV7J18T5Rm7/9zC9axcb5JaEF3A2w+kooRZuieWDUOjpfhkwatDOQ1K2KwW3ffq\nVvUpZbNCsZKbFWEARVXe3PrpCYb+4VUQxV6scTryQiI2TCjxBCEpcXE7ei3ojsQL\nuQIDAQAB\n-----END PUBLIC KEY-----"
     },
     "headers": {
-      "x-webhook-id": "msg_a0633dc637df454c91eabdfdd15f1e9d",
+      "x-webhook-id": "msg_5adaa14bd7a447ae953a3fabcc271578",
       "x-webhook-timestamp": "2026-09-18T15:00:00.000Z",
-      "x-webhook-signature": "v1=FNFBLembG5lL1Ybeb/lw/S0122gNFo001YU5I8OV2IPARUut/4ED4djRvAOZMFNfYLByAuUfKuAPqcycgmsHhyoTYvi0phevoi+r0l6ZJkJvpZs93KRusGCq0qeiGmC3PscLcC5tLZJp0/RkN+u2s4adlyAgGedRC8FL/BGG89f+m2tuMDGVkrm+t/DymKNSnPzffJAGFwGF0IqsMl2R5jMHtAJuNCIJPQmhhoG8k/s2GaGdEd7vEwK7z+ClSOrjfH/+lWWGYk5jsAS+l2joRYFHUiI1fk7IM0R4w1nabQxOUAOGF+3OvA6/Ztps9rEKXYA8QUDDnRVAm5O0aDINxg==",
-      "x-webhook-key-id": "whk_dBJDx0JwizoQhkkb",
+      "x-webhook-signature": "v1=KDUIEsNcnAlP4yScWg0vjFhp5udIc6zY06Ogc/e8xAgxmEX4TKRG4RZ+FCR5BLcnfmFPKe9PW6N9sBoc4u+ZoDshY05934nLgvyeDs9o3OhZFMb9a9A/fG1sWhxFWOIBn2Xw5S7bshGWJPq3DRCkmYvLyiZ0vKNbK17S1DFfxZFhBH7O5sD8LITwfdaPlGMVPdT4RyfOP6w33/Gd6ZL4GFX7pUBbpmSMhz0w6rz7+NKy+g9zumZdBM86Ja0XdLmXijvzrZKx4SEMtuB16mmCklrY3jKRseuNhyxzXF4FI4UB6QQkcxDZMW4FiiK+woLv989HJjkAM/uTnJ/z+nigcA==",
+      "x-webhook-key-id": "whk_Ot2Q-eK1K7yYX3vR",
       "x-webhook-version": "v1"
     },
-    "body": "{\"id\":\"evt_122b635e15cd4e248f96\",\"type\":\"biometrics.session.completed\",\"data\":{\"sessionId\":\"5b0e2f4a-1c3d-4e5f-8a9b-0c1d2e3f4a5b\",\"organizationId\":\"b0000000-0000-0000-0000-000000000001\",\"flow\":\"LIVENESS_ONLY\",\"provider\":\"OPENSOURCE\",\"outcome\":\"APPROVED\",\"reasons\":[],\"customerId\":null,\"subjectHmac\":null,\"modelVersion\":\"face-engine-2026.09.20\",\"subaccountId\":null,\"nota\":\"acentuação e emoji não: ção\"},\"metadata\":{\"timestamp\":\"2026-09-18T15:00:00.000Z\",\"organizationId\":\"b0000000-0000-0000-0000-000000000001\"}}",
+    "body": "{\"id\":\"evt_7d2f4f580ec74c24bd55\",\"type\":\"biometrics.session.completed\",\"data\":{\"sessionId\":\"5b0e2f4a-1c3d-4e5f-8a9b-0c1d2e3f4a5b\",\"organizationId\":\"b0000000-0000-0000-0000-000000000001\",\"flow\":\"LIVENESS_ONLY\",\"provider\":\"OPENSOURCE\",\"outcome\":\"APPROVED\",\"reasons\":[],\"customerId\":null,\"subjectHmac\":null,\"modelVersion\":\"face-engine-2026.09.20\",\"subaccountId\":null,\"note\":\"non-ASCII bytes: verificação concluída\"},\"metadata\":{\"timestamp\":\"2026-09-18T15:00:00.000Z\",\"organizationId\":\"b0000000-0000-0000-0000-000000000001\"}}",
     "now": "2026-09-18T15:01:00.000Z",
-    "tamperedBody": "{\"id\":\"evt_122b635e15cd4e248f96\",\"type\":\"biometrics.session.completed\",\"data\":{\"sessionId\":\"5b0e2f4a-1c3d-4e5f-8a9b-0c1d2e3f4a5b\",\"organizationId\":\"b0000000-0000-0000-0000-000000000001\",\"flow\":\"LIVENESS_ONLY\",\"provider\":\"OPENSOURCE\",\"outcome\":\"REJECTED\",\"reasons\":[],\"customerId\":null,\"subjectHmac\":null,\"modelVersion\":\"face-engine-2026.09.20\",\"subaccountId\":null,\"nota\":\"acentuação e emoji não: ção\"},\"metadata\":{\"timestamp\":\"2026-09-18T15:00:00.000Z\",\"organizationId\":\"b0000000-0000-0000-0000-000000000001\"}}"
+    "tamperedBody": "{\"id\":\"evt_7d2f4f580ec74c24bd55\",\"type\":\"biometrics.session.completed\",\"data\":{\"sessionId\":\"5b0e2f4a-1c3d-4e5f-8a9b-0c1d2e3f4a5b\",\"organizationId\":\"b0000000-0000-0000-0000-000000000001\",\"flow\":\"LIVENESS_ONLY\",\"provider\":\"OPENSOURCE\",\"outcome\":\"REJECTED\",\"reasons\":[],\"customerId\":null,\"subjectHmac\":null,\"modelVersion\":\"face-engine-2026.09.20\",\"subaccountId\":null,\"note\":\"non-ASCII bytes: verificação concluída\"},\"metadata\":{\"timestamp\":\"2026-09-18T15:00:00.000Z\",\"organizationId\":\"b0000000-0000-0000-0000-000000000001\"}}"
   },
   "evidence": {
     "evidenceKeysResponse": {
       "data": [
         {
-          "keyId": "ev-b0000000-mu7rks8m-54854b",
-          "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA5iEF49wZMnsi4Agn4tkbyrQ/85lWfBbFtBsDTaVKqJE=\n-----END PUBLIC KEY-----\n",
+          "keyId": "ev-b0000000-mu7su1k2-78a620",
+          "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAsVvgHbEjesaxJavdMsPCeB942ijMZ11jZQ5jfKVc2TI=\n-----END PUBLIC KEY-----\n",
           "createdAt": "2026-09-18T12:00:00.000Z",
           "retiredAt": null
         }
@@ -36,10 +36,21 @@
       "bundleHash": "a3f1c2d4e5b60718293a4b5c6d7e8f9001122334455667788990aabbccddeeff",
       "signature": {
         "alg": "Ed25519",
-        "keyId": "ev-b0000000-mu7rks8m-54854b",
-        "signedAt": "2026-09-19T02:24:22.777Z",
-        "value": "wAjoRqHQXWvaJ8X/DNCiPa/gy7d4YQVginluqhK87KK+UEp54fPj6ubPcfMfwjr49cu9ZeWskEqXARhULrLODw=="
+        "keyId": "ev-b0000000-mu7su1k2-78a620",
+        "signedAt": "2026-09-19T02:59:34.370Z",
+        "value": "qmCD6Guhbtjuc/Pws1RJrOGY3jDjZwRdL6G+dTrRWPGULUpKeqNNcUBvEX1CcEmtc1vd77tKKkDTnn5/oOfiCQ=="
       }
     }
-  }
+  },
+  "captureEvents": [
+    "capturing",
+    "done",
+    "error",
+    "expired",
+    "guide",
+    "ready",
+    "retry",
+    "step:",
+    "submitted"
+  ]
 }

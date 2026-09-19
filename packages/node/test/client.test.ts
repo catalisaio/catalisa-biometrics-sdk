@@ -45,7 +45,7 @@ const envelope = {
   maxAttempts: 3,
   subjectRef: null,
   customerId: null,
-  purpose: 'teste',
+  purpose: 'test',
   reference: null,
   capture: null,
   metadata: null,
@@ -70,8 +70,8 @@ const envelope = {
 
 const noSleep = async () => {}
 
-describe('Biometrics — requisições', () => {
-  it('cria sessão: POST /sessions com X-API-Key, JSON e base padrão', async () => {
+describe('Biometrics — requests', () => {
+  it('creates a session: POST /sessions with X-API-Key, JSON and the default base URL', async () => {
     const { fn, calls } = mockFetch(json(201, { data: envelope }))
     const bio = new Biometrics({ apiKey: 'pk.sk', fetch: fn })
     const s = await bio.sessions.create({ flow: 'LIVENESS_ONLY', purpose: 'abertura de conta' })
@@ -85,17 +85,17 @@ describe('Biometrics — requisições', () => {
     expect(JSON.parse(calls[0].init.body as string)).toEqual({ flow: 'LIVENESS_ONLY', purpose: 'abertura de conta' })
   })
 
-  it('baseUrl customizada (sem barra dupla), subaccountId e Idempotency-Key opcional', async () => {
+  it('custom baseUrl (no double slash), subaccountId and optional Idempotency-Key', async () => {
     const { fn, calls } = mockFetch(json(201, { data: envelope }))
     const bio = new Biometrics({ apiKey: 'k', baseUrl: 'https://biometrics.bb.stg.catalisa.app/biometrics/api/v1/', subaccountId: 'sub-1', fetch: fn })
-    await bio.sessions.create({ flow: 'LIVENESS_ONLY', purpose: 'x y z' }, { idempotencyKey: 'pedido-42' })
+    await bio.sessions.create({ flow: 'LIVENESS_ONLY', purpose: 'x y z' }, { idempotencyKey: 'order-42' })
     expect(calls[0].url).toBe('https://biometrics.bb.stg.catalisa.app/biometrics/api/v1/sessions')
     const h = calls[0].init.headers as Record<string, string>
     expect(h['X-Subaccount-Id']).toBe('sub-1')
-    expect(h['Idempotency-Key']).toBe('pedido-42')
+    expect(h['Idempotency-Key']).toBe('order-42')
   })
 
-  it('accessToken usa Authorization: Bearer em vez de X-API-Key', async () => {
+  it('accessToken uses Authorization: Bearer instead of X-API-Key', async () => {
     const { fn, calls } = mockFetch(json(200, { data: envelope }))
     await new Biometrics({ accessToken: 'jwt', fetch: fn }).sessions.get(envelope.sessionId)
     const h = calls[0].init.headers as Record<string, string>
@@ -103,11 +103,11 @@ describe('Biometrics — requisições', () => {
     expect(h['X-API-Key']).toBeUndefined()
   })
 
-  it('exige credencial', () => {
+  it('requires a credential', () => {
     expect(() => new Biometrics({ fetch: vi.fn() })).toThrow(/apiKey/)
   })
 
-  it('get, cancel e evidence nos caminhos do BB (id escapado)', async () => {
+  it('get, cancel and evidence on the server paths (escaped id)', async () => {
     const { fn, calls } = mockFetch(json(200, { data: envelope }))
     const bio = new Biometrics({ apiKey: 'k', fetch: fn })
     await bio.sessions.get('a/b')
@@ -122,7 +122,7 @@ describe('Biometrics — requisições', () => {
     ])
   })
 
-  it('list: paginação page[number]/page[size] e filtros; devolve data + meta', async () => {
+  it('list: page[number]/page[size] pagination and filters; returns data + meta', async () => {
     const { fn, calls } = mockFetch(json(200, { data: [envelope], meta: { total: 1, page: { number: 2, size: 10 } } }))
     const bio = new Biometrics({ apiKey: 'k', fetch: fn })
     const r = await bio.sessions.list({ page: 2, pageSize: 10, status: 'APPROVED', from: new Date('2026-09-01T00:00:00Z'), subaccountId: 's1' })
@@ -136,9 +136,9 @@ describe('Biometrics — requisições', () => {
     expect(u.searchParams.has('flow')).toBe(false)
   })
 
-  it('submitCapture: multipart com vídeo, telemetria, canal SDK e o captureToken no Bearer (sem a chave)', async () => {
+  it('submitCapture: multipart with video, telemetry, SDK channel and the captureToken as Bearer (no API key)', async () => {
     const { fn, calls } = mockFetch(json(200, { data: { sessionId: 'id1', status: 'COMPLETED' } }))
-    const bio = new Biometrics({ apiKey: 'segredo', fetch: fn })
+    const bio = new Biometrics({ apiKey: 'secret', fetch: fn })
     const r = await bio.sessions.submitCapture('id1', 'cap-token', { video: new Blob([new Uint8Array([1, 2, 3])], { type: 'video/webm' }), telemetry: { schemaVersion: 1 } })
     expect(r.status).toBe('COMPLETED')
     expect(calls[0].url).toMatch(/\/sessions\/id1\/captures$/)
@@ -152,17 +152,17 @@ describe('Biometrics — requisições', () => {
   })
 })
 
-describe('Biometrics — erros tipados (formato do BB)', () => {
+describe('Biometrics — typed errors (server format)', () => {
   const cases: Array<[string, Response, new (...a: never[]) => BiometricsError, string]> = [
     ['401', json(401, { error: 'UNAUTHORIZED', message: 'Invalid API key', statusCode: 401, details: { code: 'API_KEY_INVALID' } }), AuthenticationError, 'API_KEY_INVALID'],
     [
-      '402 cota',
-      json(402, { error: 'PAYMENT_REQUIRED', message: 'Cota mensal atingida', details: { code: 'QUOTA_EXCEEDED', subaccountId: 's', monthlyQuota: 500, used: 500 } }),
+      '402 quota',
+      json(402, { error: 'PAYMENT_REQUIRED', message: 'Monthly quota reached', details: { code: 'QUOTA_EXCEEDED', subaccountId: 's', monthlyQuota: 500, used: 500 } }),
       QuotaExceededError,
       'QUOTA_EXCEEDED',
     ],
-    ['403 suspensa', json(403, { error: 'FORBIDDEN', message: 'Subconta suspensa', details: { code: 'SUBACCOUNT_SUSPENDED', reason: 'inadimplência' } }), SubaccountSuspendedError, 'SUBACCOUNT_SUSPENDED'],
-    ['403 permissão', json(403, { error: 'FORBIDDEN', message: 'Insufficient permissions' }), PermissionError, 'FORBIDDEN'],
+    ['403 suspended', json(403, { error: 'FORBIDDEN', message: 'Subaccount suspended', details: { code: 'SUBACCOUNT_SUSPENDED', reason: 'unpaid' } }), SubaccountSuspendedError, 'SUBACCOUNT_SUSPENDED'],
+    ['403 permission', json(403, { error: 'FORBIDDEN', message: 'Insufficient permissions' }), PermissionError, 'FORBIDDEN'],
     ['400', json(400, { error: 'VALIDATION', details: { flow: { _errors: ['x'] } } }), ValidationError, 'VALIDATION'],
     ['404', json(404, { error: 'NOT_FOUND', message: 'BiometricsSession not found' }), NotFoundError, 'NOT_FOUND'],
   ]
@@ -177,14 +177,14 @@ describe('Biometrics — erros tipados (formato do BB)', () => {
     })
   }
 
-  it('402 expõe details (monthlyQuota/used) e requestId do x-trace-id', async () => {
+  it('402 exposes details (monthlyQuota/used) and requestId from x-trace-id', async () => {
     const { fn } = mockFetch(json(402, { error: 'PAYMENT_REQUIRED', message: 'm', details: { code: 'QUOTA_EXCEEDED', monthlyQuota: 10, used: 10 } }, { 'x-trace-id': 'tr-1' }))
     const err = (await new Biometrics({ apiKey: 'k', fetch: fn }).sessions.create({ flow: 'LIVENESS_ONLY', purpose: 'abc' }).catch((e) => e)) as QuotaExceededError
     expect(err.details).toMatchObject({ monthlyQuota: 10, used: 10 })
     expect(err.requestId).toBe('tr-1')
   })
 
-  it('429 do limitador global (formato too_many_requests) vira RateLimitError com retryAfter', async () => {
+  it('429 from the global limiter (too_many_requests shape) becomes RateLimitError with retryAfter', async () => {
     const { fn } = mockFetch(json(429, { error: 'too_many_requests', error_description: 'Rate limit exceeded.', retry_after: 7 }, { 'retry-after': '7' }))
     const err = await new Biometrics({ apiKey: 'k', fetch: fn, maxRetries: 0 }).sessions.get('x').catch((e) => e)
     expect(err).toBeInstanceOf(RateLimitError)
@@ -194,7 +194,7 @@ describe('Biometrics — erros tipados (formato do BB)', () => {
 })
 
 describe('Biometrics — retries', () => {
-  it('leitura repete em 503 e em erro de rede, com backoff', async () => {
+  it('reads retry on 503 and on network errors, with backoff', async () => {
     const sleeps: number[] = []
     const { fn } = mockFetch(json(503, { error: 'SERVICE_UNAVAILABLE' }), new TypeError('fetch failed'), json(200, { data: envelope }))
     const bio = new Biometrics({ apiKey: 'k', fetch: fn, sleep: async (ms) => void sleeps.push(ms) })
@@ -205,14 +205,14 @@ describe('Biometrics — retries', () => {
     expect(sleeps[1]).toBeGreaterThanOrEqual(sleeps[0])
   })
 
-  it('desiste após maxRetries e lança ServerError', async () => {
+  it('gives up after maxRetries and throws ServerError', async () => {
     const { fn } = mockFetch(json(500, { message: 'Internal server error', statusCode: 500 }))
     const err = await new Biometrics({ apiKey: 'k', fetch: fn, sleep: noSleep, maxRetries: 2 }).sessions.get('x').catch((e) => e)
     expect(err).toBeInstanceOf(ServerError)
     expect(fn).toHaveBeenCalledTimes(3)
   })
 
-  it('criação NÃO repete em 5xx nem em erro de rede (evita sessão duplicada)', async () => {
+  it('creation is NOT retried on 5xx or network errors (avoids duplicate sessions)', async () => {
     const a = mockFetch(json(503, { error: 'SERVICE_UNAVAILABLE' }))
     await expect(new Biometrics({ apiKey: 'k', fetch: a.fn, sleep: noSleep }).sessions.create({ flow: 'LIVENESS_ONLY', purpose: 'abc' })).rejects.toBeInstanceOf(ServerError)
     expect(a.fn).toHaveBeenCalledTimes(1)
@@ -221,7 +221,7 @@ describe('Biometrics — retries', () => {
     expect(b.fn).toHaveBeenCalledTimes(1)
   })
 
-  it('criação repete em 429 respeitando Retry-After', async () => {
+  it('creation is retried on 429 honoring Retry-After', async () => {
     const sleeps: number[] = []
     const { fn } = mockFetch(json(429, { error: 'too_many_requests' }, { 'retry-after': '2' }), json(201, { data: envelope }))
     const s = await new Biometrics({ apiKey: 'k', fetch: fn, sleep: async (ms) => void sleeps.push(ms) }).sessions.create({ flow: 'LIVENESS_ONLY', purpose: 'abc' })
@@ -229,13 +229,13 @@ describe('Biometrics — retries', () => {
     expect(sleeps).toEqual([2000])
   })
 
-  it('não repete 4xx', async () => {
+  it('does not retry 4xx', async () => {
     const { fn } = mockFetch(json(404, { error: 'NOT_FOUND' }))
     await expect(new Biometrics({ apiKey: 'k', fetch: fn, sleep: noSleep }).sessions.get('x')).rejects.toBeInstanceOf(NotFoundError)
     expect(fn).toHaveBeenCalledTimes(1)
   })
 
-  it('timeout vira ConnectionError TIMEOUT', async () => {
+  it('timeout becomes ConnectionError TIMEOUT', async () => {
     const fn = vi.fn(
       (_url: string, init?: RequestInit) =>
         new Promise<Response>((_r, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))))
@@ -246,16 +246,16 @@ describe('Biometrics — retries', () => {
   })
 })
 
-describe('evidência — Ed25519 (vetor gerado pelo BB)', () => {
+describe('evidence — Ed25519 (vector generated by the server code)', () => {
   const e = vectors.evidence
   const keys = e.evidenceKeysResponse.data
 
-  it('verifica offline a assinatura produzida pelo BiometricsEvidenceSignatureService', () => {
+  it('verifies offline the signature produced by BiometricsEvidenceSignatureService', () => {
     const r = verifyEvidenceSignature({ sessionId: e.sessionId, attempt: e.attempt, bundleHash: e.evidence.bundleHash, signature: e.evidence.signature }, keys)
     expect(r).toMatchObject({ valid: true, unknownKey: false, retiredAt: null })
   })
 
-  it('recusa attempt, bundleHash ou signedAt diferentes, e keyId desconhecido', () => {
+  it('rejects a different attempt, bundleHash or signedAt, and an unknown keyId', () => {
     const base = { sessionId: e.sessionId, attempt: e.attempt, bundleHash: e.evidence.bundleHash, signature: e.evidence.signature }
     expect(verifyEvidenceSignature({ ...base, attempt: 2 }, keys).valid).toBe(false)
     expect(verifyEvidenceSignature({ ...base, bundleHash: 'ff' + base.bundleHash.slice(2) }, keys).valid).toBe(false)
@@ -263,11 +263,21 @@ describe('evidência — Ed25519 (vetor gerado pelo BB)', () => {
     expect(verifyEvidenceSignature({ ...base, signature: { ...base.signature, keyId: 'ev-x' } }, keys)).toMatchObject({ valid: false, unknownKey: true })
   })
 
-  it('bio.evidence.verify busca envelope + chaves e confere localmente', async () => {
+  it('bio.evidence.verify fetches envelope + keys and verifies locally', async () => {
     const env = { ...envelope, sessionId: e.sessionId, attempt: e.attempt, status: 'APPROVED', evidence: { bundleHash: e.evidence.bundleHash, signature: e.evidence.signature, artifacts: [] } }
     const { fn, calls } = mockFetch(json(200, { data: env }), json(200, e.evidenceKeysResponse))
     const r = await new Biometrics({ apiKey: 'k', fetch: fn }).evidence.verify(e.sessionId)
     expect(r.valid).toBe(true)
     expect(calls[1].url).toMatch(/\/evidence-keys$/)
+  })
+})
+
+describe('Biometrics — Retry-After absent', () => {
+  it('429 without Retry-After header falls back to retry_after in the body, then to exponential backoff', async () => {
+    const sleeps: number[] = []
+    const { fn } = mockFetch(json(429, { error: 'too_many_requests', retry_after: 3 }), json(429, { error: 'RATE_LIMITED' }), json(200, { data: envelope }))
+    await new Biometrics({ apiKey: 'k', fetch: fn, sleep: async (ms) => void sleeps.push(ms) }).sessions.get('x')
+    expect(sleeps[0]).toBe(3000)
+    expect(sleeps[1]).toBeGreaterThanOrEqual(1000)
   })
 })

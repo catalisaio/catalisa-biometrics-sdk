@@ -1,9 +1,9 @@
 /**
- * Tipos do contrato de fio do Catalisa Biometrics.
+ * Wire-contract types of Catalisa Biometrics.
  *
- * Espelham `src/biometrics/types/index.ts` do building block (origin/main). Unions de
- * string ficam abertas (`| (string & {})`) onde o BB declara o vocabulário como aditivo:
- * um valor novo no servidor não quebra a compilação de quem já integrou.
+ * They mirror `src/biometrics/types/index.ts` of the building block (origin/main). String
+ * unions stay open (`| (string & {})`) where the server declares the vocabulary as additive:
+ * a new server-side value does not break the build of an existing integration.
  */
 
 type Open<T extends string> = T | (string & {})
@@ -21,7 +21,7 @@ export type SessionStatus =
   | 'CANCELLED'
   | 'ERROR'
 
-/** Status em que a sessão não muda mais. */
+/** Statuses after which a session never changes again. */
 export const TERMINAL_STATUSES: readonly SessionStatus[] = ['APPROVED', 'REJECTED', 'INCONCLUSIVE', 'EXPIRED', 'CANCELLED']
 
 export type ProviderType = Open<'OPENSOURCE' | 'MOCK' | 'SERPRO_DATAVALID' | 'FACETEC' | 'UNICO'>
@@ -48,7 +48,7 @@ export type CheckKind = Open<
 >
 export type CheckStatus = 'PASSED' | 'FAILED' | 'INCONCLUSIVE' | 'SKIPPED'
 
-/** Vocabulário fechado e aditivo de motivos da decisão. */
+/** Closed, additive vocabulary of decision reasons. */
 export type Reason = Open<
   | 'quality.no_face'
   | 'quality.multiple_faces'
@@ -114,7 +114,7 @@ export interface EvidenceSignature {
   alg: 'Ed25519'
   keyId: string
   signedAt: string
-  /** Assinatura em base64 sobre `${sessionId}|${attempt}|${bundleHash}|${signedAt}`. */
+  /** Base64 signature over `${sessionId}|${attempt}|${bundleHash}|${signedAt}`. */
   value: string
 }
 
@@ -128,15 +128,15 @@ export interface Evidence {
   [extra: string]: unknown
 }
 
-/** `GET /sessions/:id/evidence`: a evidência mais URLs temporárias de download dos artefatos. */
+/** `GET /sessions/:id/evidence`: the evidence plus short-lived download URLs for the artifacts. */
 export interface EvidenceWithUrls extends Evidence {
   urls: Record<string, { url: string; expiresAt: string } | null>
 }
 
 export interface Handoff {
-  /** URL da página de captura hospedada. É o que se abre no navegador/iframe/WebView. */
+  /** Hosted capture page URL. Open it in a browser tab, iframe or WebView. */
   captureUrl: string
-  /** Token de uso único por tentativa. Só para captura própria (`POST /sessions/:id/captures`). */
+  /** Single-use, per-attempt token. Only for custom capture (`POST /sessions/:id/captures`). */
   captureToken: string
   captureMode: CaptureMode
   challenge?: { script: Gesture[]; timeoutMs: number; perGestureMs: number; slotsMs?: number[] }
@@ -178,7 +178,7 @@ export interface SessionEnvelope {
   enrollment: { templateId: string } | null
   decision: Decision | null
   checks: Check[]
-  /** Presente na criação (e em nova tentativa). */
+  /** Present on creation (and on a new attempt). */
   handoff?: Handoff
   evidence: Evidence | null
   cost: { amount: string; currency: string; estimated: boolean }
@@ -188,11 +188,11 @@ export interface SessionEnvelope {
   evaluatedAt: string | null
   expiresAt: string
   elapsedMs: number | null
-  /** Subcontas: presente quando o BB tem subcontas; `null` = sessão da organização. */
+  /** Subaccounts: present when the server supports subaccounts; `null` = organization-level session. */
   subaccountId?: string | null
 }
 
-/** Envelope devolvido pela criação: `handoff` sempre presente. */
+/** Envelope returned on creation: `handoff` is always present. */
 export type CreatedSession = SessionEnvelope & { handoff: Handoff }
 
 export interface Appearance {
@@ -204,7 +204,7 @@ export interface Appearance {
   layout?: 'card' | 'fullscreen' | 'minimal'
   texts?: Record<string, Record<string, string>>
   poweredBy?: boolean
-  /** Para onde a página vai ao terminar. Em app nativo, é o sinal de "acabou" para fechar a WebView. */
+  /** Where the page navigates when finished. In native apps this is the "done" signal to close the WebView. */
   redirectUrl?: string
 }
 
@@ -216,7 +216,7 @@ export type ReferenceInput =
 
 export interface CreateSessionParams {
   flow: Exclude<BiometricsFlow, 'DEDUP'> | 'DEDUP'
-  /** Finalidade, de 3 a 120 caracteres. Vai para a trilha. */
+  /** Purpose, 3 to 120 characters. Recorded in the audit trail. */
   purpose: string
   legalBasis?: string
   subjectRef?: { type: 'CPF'; value: string }
@@ -224,11 +224,11 @@ export interface CreateSessionParams {
   reference?: ReferenceInput
   providerConfigId?: string
   appearance?: Appearance
-  /** Só para teste e calibração; em produção o BB sorteia. */
+  /** Testing and calibration only; in production the server draws the gestures. */
   challengeScript?: Gesture[]
-  /** Até 10 rótulos livres. Nunca CPF. */
+  /** Up to 10 free-form labels. Never a CPF. */
   metadata?: Record<string, string>
-  /** Grava o cadastro facial ao aprovar. Só ONBOARDING e ENROLLMENT. */
+  /** Stores the face template on approval. ONBOARDING and ENROLLMENT only. */
   enrollOnApprove?: boolean
 }
 
@@ -238,11 +238,11 @@ export interface ListSessionsParams {
   status?: SessionStatus
   flow?: BiometricsFlow
   customerId?: string
-  /** Filtra pelo CPF do titular (o BB calcula o HMAC). Vai na query string: prefira `customerId` quando puder. */
+  /** Filters by the subject's CPF (the server computes the HMAC). Goes in the query string: prefer `customerId` when you can. */
   subjectCpf?: string
   from?: string | Date
   to?: string | Date
-  /** Subcontas: filtra por subconta quando a chave é da organização. */
+  /** Subaccounts: filter by subaccount when using an organization key. */
   subaccountId?: string
 }
 
@@ -264,9 +264,9 @@ export interface EvidenceVerification {
   retiredAt: string | null
 }
 
-/** Corpo de toda entrega de webhook (Webhooks Engine). */
+/** Body of every webhook delivery (Webhooks Engine). */
 export interface WebhookEvent<T = Record<string, unknown>> {
-  /** Identificador ESTÁVEL do evento. Use para idempotência. */
+  /** STABLE event identifier. Use it for idempotency. */
   id: string
   type: BiometricsEventType
   data: T
@@ -285,7 +285,7 @@ export type BiometricsEventType = Open<
   | 'biometrics.usage.recorded'
 >
 
-/** `data` de `biometrics.session.completed` e `.review_required`. */
+/** `data` of `biometrics.session.completed` and `.review_required`. */
 export interface SessionCompletedData {
   sessionId: string
   organizationId: string

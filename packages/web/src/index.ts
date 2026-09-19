@@ -1,17 +1,17 @@
 /**
- * @catalisa/biometrics-web — abre a página de captura hospedada do Catalisa Biometrics
- * (link, iframe ou modal) e entrega os eventos de ANDAMENTO que ela manda por postMessage.
+ * @catalisa/biometrics-web — opens the Catalisa Biometrics hosted capture page (link, iframe or
+ * modal) and delivers the PROGRESS events the page sends through postMessage.
  *
- * O resultado da verificação NUNCA chega ao front: a página não o revela, de propósito
- * (para não virar oráculo de fraude). O resultado vem no webhook
- * `biometrics.session.completed` ou em `GET /sessions/:id`, no SEU servidor.
+ * The verification result NEVER reaches the front end: the page does not reveal it, on purpose
+ * (so it cannot be used as a fraud oracle). The result arrives in the
+ * `biometrics.session.completed` webhook or via `GET /sessions/:id`, on YOUR server.
  *
- * Eventos reais emitidos por `src/biometrics/capture-page/page.ts` (mensagem
+ * Real events emitted by `src/biometrics/capture-page/page.ts` (message
  * `{ source: 'catalisa-biometrics', event, ...extra }`):
- *   ready · capturing · step:<GESTO> {index,total,gesture,durationMs} · submitted · retry ·
+ *   ready · capturing · step:<GESTURE> {index,total,gesture,durationMs} · submitted · retry ·
  *   done · expired · error {reason:'camera'|'engine', name?} · guide {loaded, reason?}
- * A página só manda eventos quando está num iframe e só para as origens listadas em
- * `allowedEmbedHosts` do fornecedor — sem isso, nem o iframe carrega (frame-ancestors).
+ * The page only posts events when it is inside an iframe, and only to the origins listed in the
+ * provider's `allowedEmbedHosts` — without that, the iframe does not even load (frame-ancestors).
  */
 
 export const VERSION = '0.1.0'
@@ -27,7 +27,7 @@ export type CaptureEvent =
   | { type: 'expired'; raw: RawMessage }
   | { type: 'error'; reason: string; name?: string; raw: RawMessage }
   | { type: 'guide'; loaded: boolean; reason?: string; raw: RawMessage }
-  /** Evento que a página ainda não tinha quando este SDK saiu. Repassado sem interpretação. */
+  /** An event this SDK version does not know yet. Passed through uninterpreted. */
   | { type: 'unknown'; event: string; raw: RawMessage }
 
 export type CaptureEventType = CaptureEvent['type']
@@ -41,126 +41,127 @@ export interface RawMessage {
 export type CloseReason = 'user' | 'api' | 'done' | 'expired'
 
 export interface OpenCaptureOptions {
-  /** `handoff.captureUrl` da sessão criada no SEU servidor. */
+  /** `handoff.captureUrl` of the session created on YOUR server. */
   captureUrl: string
-  /** `modal` (padrão): sobreposição em tela cheia. `iframe`: dentro de `container`. `redirect`: navega a aba. */
+  /** `modal` (default): fullscreen overlay. `iframe`: inside `container`. `redirect`: navigates the tab. */
   mode?: 'modal' | 'iframe' | 'redirect'
-  /** Elemento (ou seletor) que recebe o iframe no modo `iframe`. */
+  /** Element (or selector) that receives the iframe in `iframe` mode. */
   container?: HTMLElement | string
-  /** Cada evento de andamento. Nenhum deles traz resultado. */
+  /** Every progress event. None of them carries the result. */
   onEvent?: (event: CaptureEvent) => void
-  /** Chamado uma vez quando a captura é fechada (pelo usuário, por `close()`, ou ao terminar). */
+  /** Called once when the capture is closed (by the user, by `close()`, or on completion). */
   onClose?: (reason: CloseReason) => void
   /**
-   * Fecha sozinho depois de `done`/`expired` (ms). Padrão: 1500 no modal, `false` no iframe.
-   * `false` desliga.
+   * Auto-close after `done`/`expired` (ms). Default: 1500 in the modal, `false` in the iframe.
+   * `false` disables it.
    */
   autoCloseMs?: number | false
-  /** Rótulo acessível do diálogo/iframe. */
+  /** Accessible label of the dialog/iframe. */
   title?: string
-  /** Texto do botão de fechar do modal. */
+  /** Accessible label of the modal's close button. */
   closeLabel?: string
-  /** Permite http:// (desenvolvimento local). Padrão: só https, exceto localhost. */
+  /** Allows http:// (local development). Default: https only, except localhost. */
   allowInsecure?: boolean
 }
 
 export interface CaptureHandle {
-  /** O iframe montado (null no modo redirect). */
+  /** The mounted iframe (null in redirect mode). */
   readonly iframe: HTMLIFrameElement | null
-  /** Origem esperada nas mensagens (a da `captureUrl`). */
+  /** Origin expected on messages (the captureUrl's origin). */
   readonly origin: string
-  /** Fecha e desmonta. Idempotente. */
+  /** Closes and unmounts. Idempotent. */
   close(): void
-  /** `true` depois de fechado. */
+  /** `true` once closed. */
   readonly closed: boolean
 }
 
-/** Converte a mensagem crua da página em evento tipado. Exportado para quem monta o próprio iframe. */
+/** Turns the page's raw message into a typed event. Exported for those who mount their own iframe. */
 export function parseCaptureMessage(data: unknown): CaptureEvent | null {
   if (!data || typeof data !== 'object') return null
   const raw = data as RawMessage
   if (raw.source !== MESSAGE_SOURCE || typeof raw.event !== 'string') return null
-  const ev = raw.event
-  if (ev.startsWith('step:')) {
+  const name = raw.event
+  if (name.startsWith('step:')) {
     return {
       type: 'step',
-      gesture: typeof raw.gesture === 'string' ? raw.gesture : ev.slice(5),
+      gesture: typeof raw.gesture === 'string' ? raw.gesture : name.slice(5),
       index: typeof raw.index === 'number' ? raw.index : 0,
       total: typeof raw.total === 'number' ? raw.total : 0,
       durationMs: typeof raw.durationMs === 'number' ? raw.durationMs : null,
       raw,
     }
   }
-  switch (ev) {
+  switch (name) {
     case 'ready':
     case 'capturing':
     case 'submitted':
     case 'retry':
     case 'done':
     case 'expired':
-      return { type: ev, raw }
+      return { type: name, raw }
     case 'error':
       return { type: 'error', reason: typeof raw.reason === 'string' ? raw.reason : 'unknown', ...(typeof raw.name === 'string' ? { name: raw.name } : {}), raw }
     case 'guide':
       return { type: 'guide', loaded: raw.loaded === true, ...(typeof raw.reason === 'string' ? { reason: raw.reason } : {}), raw }
     default:
-      return { type: 'unknown', event: ev, raw }
+      return { type: 'unknown', event: name, raw }
   }
 }
 
 function validUrl(captureUrl: string, allowInsecure: boolean): URL {
-  let u: URL
+  let url: URL
   try {
-    u = new URL(captureUrl)
+    url = new URL(captureUrl)
   } catch {
-    throw new Error('CatalisaBiometrics: captureUrl inválida')
+    throw new Error('CatalisaBiometrics: invalid captureUrl')
   }
-  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1'
-  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && (allowInsecure || local))) {
-    throw new Error('CatalisaBiometrics: captureUrl precisa ser https')
+  const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && (allowInsecure || local))) {
+    throw new Error('CatalisaBiometrics: captureUrl must use https')
   }
-  return u
+  return url
 }
 
-function resolveContainer(c: OpenCaptureOptions['container']): HTMLElement {
-  const el = typeof c === 'string' ? document.querySelector<HTMLElement>(c) : c
-  if (!el) throw new Error('CatalisaBiometrics: modo iframe precisa de um container existente')
+function resolveContainer(container: OpenCaptureOptions['container']): HTMLElement {
+  const el = typeof container === 'string' ? document.querySelector<HTMLElement>(container) : container
+  if (!el) throw new Error('CatalisaBiometrics: iframe mode needs an existing container')
   return el
 }
 
 function makeIframe(url: string, title: string): HTMLIFrameElement {
-  const f = document.createElement('iframe')
-  f.src = url
-  f.title = title
-  // A página pede a câmera; o iframe precisa delegar a permissão. Microfone não é usado.
-  f.allow = 'camera'
-  f.setAttribute('allow', 'camera')
-  f.referrerPolicy = 'no-referrer'
-  f.style.border = '0'
-  f.style.width = '100%'
-  f.style.height = '100%'
-  return f
+  const iframe = document.createElement('iframe')
+  iframe.src = url
+  iframe.title = title
+  // The page asks for the camera; the iframe must delegate the permission. The microphone is not used.
+  iframe.allow = 'camera'
+  iframe.setAttribute('allow', 'camera')
+  iframe.referrerPolicy = 'no-referrer'
+  iframe.style.border = '0'
+  iframe.style.width = '100%'
+  iframe.style.height = '100%'
+  return iframe
 }
 
 const STYLE_ID = 'catalisa-biometrics-style'
 function ensureStyle(): void {
   if (document.getElementById(STYLE_ID)) return
-  const s = document.createElement('style')
-  s.id = STYLE_ID
-  s.textContent =
+  const style = document.createElement('style')
+  style.id = STYLE_ID
+  style.textContent =
     '.cbio-overlay{position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center}' +
     '.cbio-dialog{position:relative;background:#fff;width:min(480px,100vw);height:min(760px,100dvh);border-radius:12px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.35)}' +
     '@media (max-width:520px){.cbio-dialog{width:100vw;height:100dvh;border-radius:0}}' +
     '.cbio-close{position:absolute;top:8px;right:8px;z-index:1;border:0;border-radius:999px;width:36px;height:36px;font-size:20px;line-height:36px;cursor:pointer;background:rgba(0,0,0,.55);color:#fff}'
-  document.head.appendChild(s)
+  document.head.appendChild(style)
 }
 
 /**
- * Abre a captura. Em `redirect`, navega a aba (a página pode voltar pelo `appearance.redirectUrl`
- * da sessão) e não há eventos. Em `iframe` e `modal`, ouve o postMessage validando a origem e a janela.
+ * Opens the capture. In `redirect` mode it navigates the tab (the page can come back through the
+ * session's `appearance.redirectUrl`) and there are no events. In `iframe` and `modal` modes it
+ * listens to postMessage, validating the origin and the source window.
  */
 export function openCapture(opts: OpenCaptureOptions): CaptureHandle {
-  if (typeof window === 'undefined' || typeof document === 'undefined') throw new Error('CatalisaBiometrics: só roda no navegador')
+  if (typeof window === 'undefined' || typeof document === 'undefined') throw new Error('CatalisaBiometrics: browser only')
   const url = validUrl(opts.captureUrl, opts.allowInsecure === true)
   const mode = opts.mode ?? 'modal'
   const origin = url.origin
@@ -170,7 +171,7 @@ export function openCapture(opts: OpenCaptureOptions): CaptureHandle {
     return { iframe: null, origin, close() {}, closed: false }
   }
 
-  const title = opts.title ?? 'Verificação facial'
+  const title = opts.title ?? 'Face verification'
   const iframe = makeIframe(url.toString(), title)
   let root: HTMLElement
   let previousFocus: Element | null = null
@@ -189,13 +190,13 @@ export function openCapture(opts: OpenCaptureOptions): CaptureHandle {
     dialog.setAttribute('role', 'dialog')
     dialog.setAttribute('aria-modal', 'true')
     dialog.setAttribute('aria-label', title)
-    const btn = document.createElement('button')
-    btn.type = 'button'
-    btn.className = 'cbio-close'
-    btn.setAttribute('aria-label', opts.closeLabel ?? 'Fechar')
-    btn.textContent = '×'
-    btn.addEventListener('click', () => close('user'))
-    dialog.appendChild(btn)
+    const closeButton = document.createElement('button')
+    closeButton.type = 'button'
+    closeButton.className = 'cbio-close'
+    closeButton.setAttribute('aria-label', opts.closeLabel ?? 'Close')
+    closeButton.textContent = '×'
+    closeButton.addEventListener('click', () => close('user'))
+    dialog.appendChild(closeButton)
     dialog.appendChild(iframe)
     overlay.appendChild(dialog)
     document.body.appendChild(overlay)
@@ -204,7 +205,7 @@ export function openCapture(opts: OpenCaptureOptions): CaptureHandle {
     }
     document.addEventListener('keydown', onKey)
     root = overlay
-    btn.focus()
+    closeButton.focus()
   }
 
   const autoClose = opts.autoCloseMs === undefined ? (mode === 'modal' ? 1500 : false) : opts.autoCloseMs
@@ -212,15 +213,15 @@ export function openCapture(opts: OpenCaptureOptions): CaptureHandle {
   let timer: ReturnType<typeof setTimeout> | null = null
 
   function onMessage(e: MessageEvent): void {
-    if (e.origin !== origin) return // só a origem da captureUrl
-    if (e.source !== iframe.contentWindow) return // só o NOSSO iframe
-    const ev = parseCaptureMessage(e.data)
-    if (!ev) return
+    if (e.origin !== origin) return // only the captureUrl's origin
+    if (e.source !== iframe.contentWindow) return // only OUR iframe
+    const event = parseCaptureMessage(e.data)
+    if (!event) return
     try {
-      opts.onEvent?.(ev)
+      opts.onEvent?.(event)
     } finally {
-      if ((ev.type === 'done' || ev.type === 'expired') && autoClose !== false && !timer) {
-        const reason: CloseReason = ev.type
+      if ((event.type === 'done' || event.type === 'expired') && autoClose !== false && !timer) {
+        const reason: CloseReason = event.type
         timer = setTimeout(() => close(reason), autoClose)
       }
     }

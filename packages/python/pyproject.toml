@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "catalisa-biometrics"
 version = "0.1.0"
-description = "SDK Python do Catalisa Biometrics — sessões de prova de vida e match facial, evidência assinada e verificação de webhook (só stdlib)"
+description = "Catalisa Biometrics Python SDK — liveness and face-match sessions, signed evidence and webhook verification (standard library only)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }

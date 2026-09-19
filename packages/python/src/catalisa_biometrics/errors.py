@@ -1,4 +1,4 @@
-"""Erros tipados, na mesma hierarquia do SDK Node."""
+"""Typed errors, with the same hierarchy as the Node SDK."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from typing import Any, Mapping, Optional
 
 
 class BiometricsError(Exception):
-    """Erro de API. ``code`` é ``details.code`` quando o BB manda (QUOTA_EXCEEDED,
-    SUBACCOUNT_SUSPENDED...) e, na falta dele, ``error`` (VALIDATION, NOT_FOUND...)."""
+    """API error. ``code`` is ``details.code`` when the server sends one (QUOTA_EXCEEDED,
+    SUBACCOUNT_SUSPENDED...) and ``error`` otherwise (VALIDATION, NOT_FOUND...)."""
 
     def __init__(
         self,
@@ -32,24 +32,24 @@ class BiometricsError(Exception):
 
 
 class AuthenticationError(BiometricsError):
-    """401 — chave ausente, inválida, revogada ou expirada."""
+    """401 — missing, invalid, revoked or expired key."""
 
 
 class PermissionDeniedError(BiometricsError):
-    """403 sem subcódigo de subconta (falta permissão, titular bloqueado)."""
+    """403 without a subaccount sub-code (missing permission, subject locked)."""
 
 
 
 class QuotaExceededError(BiometricsError):
-    """402 QUOTA_EXCEEDED — cota mensal da subconta atingida."""
+    """402 QUOTA_EXCEEDED — the subaccount's monthly quota is used up."""
 
 
 class SubaccountSuspendedError(BiometricsError):
-    """403 SUBACCOUNT_SUSPENDED — subconta suspensa."""
+    """403 SUBACCOUNT_SUSPENDED — the subaccount is suspended."""
 
 
 class ValidationError(BiometricsError):
-    """400 — entrada inválida."""
+    """400 — invalid input."""
 
 
 class NotFoundError(BiometricsError):
@@ -57,7 +57,7 @@ class NotFoundError(BiometricsError):
 
 
 class RateLimitError(BiometricsError):
-    """429. ``retry_after`` em segundos, quando o servidor informa."""
+    """429. ``retry_after`` in seconds, when the server provides it."""
 
     def __init__(self, message: str, *, retry_after: Optional[float] = None, **kw: Any) -> None:
         super().__init__(message, **kw)
@@ -69,12 +69,12 @@ class ServerError(BiometricsError):
 
 
 class APIConnectionError(BiometricsError):
-    """Sem resposta (rede/timeout). ``code`` = TIMEOUT ou CONNECTION."""
+    """No response (network/timeout). ``code`` = TIMEOUT or CONNECTION."""
 
 
 
 class WebhookVerificationError(BiometricsError):
-    """Entrega de webhook não autêntica ou fora da tolerância. ``code`` diz o motivo."""
+    """Webhook delivery not authentic or outside the tolerance. ``code`` says why."""
 
 
 def error_from_response(status: int, body: Any, headers: Mapping[str, str]) -> BiometricsError:
@@ -86,7 +86,7 @@ def error_from_response(status: int, body: Any, headers: Mapping[str, str]) -> B
     message = (
         (b.get("message") if isinstance(b.get("message"), str) and b.get("message") else None)
         or (b.get("error_description") if isinstance(b.get("error_description"), str) else None)
-        or f"Biometrics respondeu HTTP {status}"
+        or f"Biometrics API responded with HTTP {status}"
     )
     low = {k.lower(): v for k, v in headers.items()}
     kw: dict = dict(status=status, code=code, request_id=low.get("x-request-id") or low.get("x-trace-id"), details=details, body=body)

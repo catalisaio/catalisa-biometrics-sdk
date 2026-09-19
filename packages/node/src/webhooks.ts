@@ -3,19 +3,19 @@ import { WebhookVerificationError } from './errors'
 import type { WebhookEvent } from './types'
 
 /**
- * Verificação das entregas do Webhooks Engine da Catalisa, exatamente como ele assina
- * (`src/webhooks-engine/utils/crypto.ts` e `services/signing-key.service.ts`):
+ * Verification of Catalisa Webhooks Engine deliveries, exactly as the engine signs them
+ * (`src/webhooks-engine/utils/crypto.ts` and `services/signing-key.service.ts`):
  *
- *   mensagem   = x-webhook-id + "\n" + x-webhook-timestamp + "\n" + corpo cru
- *   assinatura = RSA-SHA256 (PKCS#1 v1.5) com a chave privada da subscription, em base64
- *   header     = x-webhook-signature: "v1=<base64>"; x-webhook-key-id escolhe a chave pública
+ *   message   = x-webhook-id + "\n" + x-webhook-timestamp + "\n" + raw body
+ *   signature = RSA-SHA256 (PKCS#1 v1.5) with the subscription's private key, base64
+ *   header    = x-webhook-signature: "v1=<base64>"; x-webhook-key-id selects the public key
  *
- * A assinatura é ASSIMÉTRICA: você verifica com a chave PÚBLICA da subscription
- * (`GET /webhooks-engine/api/v1/subscriptions/:id/keys`), não com um segredo compartilhado.
- * O BB não recusa entrega antiga — quem aplica a tolerância de tempo é o receptor (padrão: 300 s).
+ * The signature is ASYMMETRIC: you verify with the subscription's PUBLIC key
+ * (`GET /webhooks-engine/api/v1/subscriptions/:id/keys`), not with a shared secret.
+ * The server does not reject old deliveries — the receiver enforces the time tolerance (default 300 s).
  */
 
-/** Chaves públicas aceitas: mapa keyId → PEM, lista `{ keyId, publicKey }` ou um PEM só. */
+/** Accepted public keys: keyId → PEM map, `{ keyId, publicKey }` list, or a single PEM. */
 export type WebhookPublicKeys =
   | string
   | Record<string, string>
@@ -26,9 +26,9 @@ export type HeadersLike =
   | Record<string, string | string[] | undefined>
 
 export interface VerifyOptions {
-  /** Tolerância do timestamp, em segundos. Padrão 300. `0` desliga (não recomendado). */
+  /** Timestamp tolerance in seconds. Default 300. `0` disables it (not recommended). */
   toleranceSeconds?: number
-  /** Relógio de referência (teste). */
+  /** Reference clock (tests). */
   now?: Date | number
 }
 
@@ -41,12 +41,12 @@ export type WebhookFailure =
   | 'INVALID_SIGNATURE'
 
 const MESSAGES: Record<WebhookFailure, string> = {
-  MISSING_HEADERS: 'Faltam headers x-webhook-id, x-webhook-timestamp, x-webhook-key-id ou x-webhook-signature',
-  TIMESTAMP_INVALID: 'x-webhook-timestamp não é uma data ISO 8601',
-  TIMESTAMP_OUT_OF_TOLERANCE: 'Entrega fora da tolerância de tempo (possível replay)',
-  UNKNOWN_KEY_ID: 'Nenhuma chave pública para este x-webhook-key-id',
-  UNSUPPORTED_SIGNATURE_VERSION: 'Versão de assinatura não suportada (esperado v1=)',
-  INVALID_SIGNATURE: 'Assinatura inválida',
+  MISSING_HEADERS: 'Missing x-webhook-id, x-webhook-timestamp, x-webhook-key-id or x-webhook-signature header',
+  TIMESTAMP_INVALID: 'x-webhook-timestamp is not an ISO 8601 date',
+  TIMESTAMP_OUT_OF_TOLERANCE: 'Delivery is outside the time tolerance (possible replay)',
+  UNKNOWN_KEY_ID: 'No public key for this x-webhook-key-id',
+  UNSUPPORTED_SIGNATURE_VERSION: 'Unsupported signature version (expected v1=)',
+  INVALID_SIGNATURE: 'Invalid signature',
 }
 
 function header(headers: HeadersLike, name: string): string | undefined {
@@ -79,7 +79,7 @@ function toBytes(raw: string | Uint8Array): Buffer {
   return typeof raw === 'string' ? Buffer.from(raw, 'utf8') : Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength)
 }
 
-/** Diagnóstico: `null` se válida; senão o motivo. */
+/** Diagnostics: `null` when valid; otherwise the failure reason. */
 export function checkWebhook(rawBody: string | Uint8Array, headers: HeadersLike, keys: WebhookPublicKeys, opts: VerifyOptions = {}): WebhookFailure | null {
   const id = header(headers, 'x-webhook-id')
   const timestamp = header(headers, 'x-webhook-timestamp')
@@ -108,14 +108,14 @@ export function checkWebhook(rawBody: string | Uint8Array, headers: HeadersLike,
   return ok ? null : 'INVALID_SIGNATURE'
 }
 
-/** `true` se a entrega é autêntica e está dentro da tolerância. Nunca lança por assinatura. */
+/** `true` when the delivery is authentic and within tolerance. Never throws on bad signatures. */
 export function verify(rawBody: string | Uint8Array, headers: HeadersLike, keys: WebhookPublicKeys, opts?: VerifyOptions): boolean {
   return checkWebhook(rawBody, headers, keys, opts) === null
 }
 
 /**
- * Verifica e devolve o evento. Lança `WebhookVerificationError` (com `code` = motivo) se não for
- * autêntico. Passe o CORPO CRU — reserializar o JSON muda os bytes e invalida a assinatura.
+ * Verifies and returns the event. Throws `WebhookVerificationError` (with `code` = reason) when it
+ * is not authentic. Pass the RAW body — re-serializing the JSON changes the bytes and breaks the signature.
  */
 export function constructEvent<T = Record<string, unknown>>(
   rawBody: string | Uint8Array,
@@ -129,6 +129,6 @@ export function constructEvent<T = Record<string, unknown>>(
   try {
     return JSON.parse(text) as WebhookEvent<T>
   } catch {
-    throw new WebhookVerificationError('Corpo do webhook não é JSON', { status: 400, code: 'INVALID_JSON' })
+    throw new WebhookVerificationError('Webhook body is not JSON', { status: 400, code: 'INVALID_JSON' })
   }
 }

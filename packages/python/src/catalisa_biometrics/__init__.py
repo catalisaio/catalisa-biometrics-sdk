@@ -1,7 +1,7 @@
-"""Catalisa Biometrics — SDK Python (só stdlib).
+"""Catalisa Biometrics — Python SDK (standard library only).
 
-O resultado de uma verificação vem pelo webhook ``biometrics.session.completed`` (verifique com
-``verify_webhook``/``construct_event``) ou por ``Biometrics.sessions.get`` — nunca pela página de captura.
+A verification result arrives through the ``biometrics.session.completed`` webhook (verify it with
+``verify_webhook``/``construct_event``) or via ``Biometrics.sessions.get`` — never through the capture page.
 """
 
 from .client import DEFAULT_BASE_URL, STAGING_BASE_URL, VERSION, Biometrics, HttpResponse, urllib_transport

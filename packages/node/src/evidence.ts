@@ -2,14 +2,14 @@ import { createPublicKey, verify as cryptoVerify } from 'node:crypto'
 import type { EvidenceKey, EvidenceSignature } from './types'
 
 /**
- * Verificação OFFLINE da evidência assinada, sem depender da Catalisa
+ * OFFLINE verification of the signed evidence, without depending on Catalisa
  * (`src/biometrics/services/evidence-signature.service.ts`):
  *
- *   mensagem   = `${sessionId}|${attempt}|${bundleHash}|${signedAt}`
- *   assinatura = Ed25519 (RFC 8032) com a chave da organização, em base64
- *   chave      = `GET /evidence-keys` → `publicKeyPem` do `keyId` da assinatura (chaves aposentadas continuam publicadas)
+ *   message   = `${sessionId}|${attempt}|${bundleHash}|${signedAt}`
+ *   signature = Ed25519 (RFC 8032) with the organization's key, base64
+ *   key       = `GET /evidence-keys` → `publicKeyPem` of the signature's `keyId` (retired keys stay published)
  *
- * `attempt` é o `attempt` do envelope da sessão (`GET /sessions/:id`).
+ * `attempt` is the session envelope's `attempt` (`GET /sessions/:id`).
  */
 export function evidenceMessage(sessionId: string, attempt: number, bundleHash: string, signedAt: string): string {
   return `${sessionId}|${attempt}|${bundleHash}|${signedAt}`
@@ -25,7 +25,7 @@ export interface EvidenceToVerify {
 export interface OfflineVerification {
   valid: boolean
   keyId: string
-  /** `true` se não há chave publicada com esse `keyId`. */
+  /** `true` when no published key has this `keyId`. */
   unknownKey: boolean
   retiredAt: string | null
 }

@@ -1,4 +1,4 @@
-"""Vetor produzido pelo BiometricsEvidenceSignatureService do BB (Ed25519)."""
+"""Vector produced by the server's BiometricsEvidenceSignatureService (Ed25519)."""
 
 from catalisa_biometrics import verify_evidence_signature
 from catalisa_biometrics import _ed25519
@@ -10,13 +10,13 @@ def _args(e, **over):
     return a
 
 
-def test_verifica_assinatura_do_bb(vectors):
+def test_verifies_server_signature(vectors):
     e = vectors["evidence"]
     r = verify_evidence_signature(**_args(e), keys=e["evidenceKeysResponse"]["data"])
     assert r == {"valid": True, "keyId": e["evidence"]["signature"]["keyId"], "unknownKey": False, "retiredAt": None}
 
 
-def test_recusa_alteracoes(vectors):
+def test_rejects_changes(vectors):
     e = vectors["evidence"]
     keys = e["evidenceKeysResponse"]["data"]
     assert not verify_evidence_signature(**_args(e, attempt=2), keys=keys)["valid"]
@@ -24,19 +24,19 @@ def test_recusa_alteracoes(vectors):
     assert not verify_evidence_signature(**_args(e, bundle_hash=bh), keys=keys)["valid"]
     sig = dict(e["evidence"]["signature"], signedAt="2026-01-01T00:00:00.000Z")
     assert not verify_evidence_signature(**_args(e, signature=sig), keys=keys)["valid"]
-    sig = dict(e["evidence"]["signature"], keyId="ev-outra")
+    sig = dict(e["evidence"]["signature"], keyId="ev-other")
     r = verify_evidence_signature(**_args(e, signature=sig), keys=keys)
     assert r["unknownKey"] and not r["valid"]
 
 
-def test_mapa_de_chaves(vectors):
+def test_key_map(vectors):
     e = vectors["evidence"]
     k = e["evidenceKeysResponse"]["data"][0]
     assert verify_evidence_signature(**_args(e), keys={k["keyId"]: k["publicKeyPem"]})["valid"]
 
 
-def test_rfc8032_vetor_1():
-    # RFC 8032 §7.1, TEST 1 (mensagem vazia)
+def test_rfc8032_vector_1():
+    # RFC 8032 §7.1, TEST 1 (empty message)
     pub = bytes.fromhex("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
     sig = bytes.fromhex(
         "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e06522490155"

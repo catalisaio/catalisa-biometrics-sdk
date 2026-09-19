@@ -1,11 +1,11 @@
-"""Verificação das entregas do Webhooks Engine da Catalisa, exatamente como ele assina:
+"""Verification of Catalisa Webhooks Engine deliveries, exactly as the engine signs them:
 
-    mensagem   = x-webhook-id + "\\n" + x-webhook-timestamp + "\\n" + corpo cru
-    assinatura = RSA-SHA256 (PKCS#1 v1.5), base64, em ``x-webhook-signature: v1=<base64>``
-    chave      = a PÚBLICA da subscription, escolhida por ``x-webhook-key-id``
+    message   = x-webhook-id + "\\n" + x-webhook-timestamp + "\\n" + raw body
+    signature = RSA-SHA256 (PKCS#1 v1.5), base64, in ``x-webhook-signature: v1=<base64>``
+    key       = the subscription's PUBLIC key, selected by ``x-webhook-key-id``
 
-Assimétrica: não há segredo compartilhado. O BB não recusa entrega antiga; a tolerância
-de tempo (padrão 300 s) é aplicada aqui.
+Asymmetric: there is no shared secret. The server does not reject old deliveries; the time
+tolerance (default 300 s) is enforced here.
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ from .errors import WebhookVerificationError
 PublicKeys = Union[str, Mapping[str, str], Iterable[Mapping[str, str]]]
 
 _MESSAGES = {
-    "MISSING_HEADERS": "Faltam headers x-webhook-id, x-webhook-timestamp, x-webhook-key-id ou x-webhook-signature",
-    "TIMESTAMP_INVALID": "x-webhook-timestamp não é uma data ISO 8601",
-    "TIMESTAMP_OUT_OF_TOLERANCE": "Entrega fora da tolerância de tempo (possível replay)",
-    "UNKNOWN_KEY_ID": "Nenhuma chave pública para este x-webhook-key-id",
-    "UNSUPPORTED_SIGNATURE_VERSION": "Versão de assinatura não suportada (esperado v1=)",
-    "INVALID_SIGNATURE": "Assinatura inválida",
+    "MISSING_HEADERS": "Missing x-webhook-id, x-webhook-timestamp, x-webhook-key-id or x-webhook-signature header",
+    "TIMESTAMP_INVALID": "x-webhook-timestamp is not an ISO 8601 date",
+    "TIMESTAMP_OUT_OF_TOLERANCE": "Delivery is outside the time tolerance (possible replay)",
+    "UNKNOWN_KEY_ID": "No public key for this x-webhook-key-id",
+    "UNSUPPORTED_SIGNATURE_VERSION": "Unsupported signature version (expected v1=)",
+    "INVALID_SIGNATURE": "Invalid signature",
 }
 
 _key_cache: Dict[str, Tuple[int, int]] = {}
@@ -73,7 +73,7 @@ def check_webhook(
     tolerance_seconds: int = 300,
     now: Optional[float] = None,
 ) -> Optional[str]:
-    """``None`` se a entrega é autêntica; senão o código do motivo."""
+    """``None`` when the delivery is authentic; otherwise the failure code."""
     msg_id = _header(headers, "x-webhook-id")
     ts = _header(headers, "x-webhook-timestamp")
     key_id = _header(headers, "x-webhook-key-id")
@@ -112,7 +112,7 @@ def verify_webhook(
     tolerance_seconds: int = 300,
     now: Optional[float] = None,
 ) -> bool:
-    """``True`` se autêntica e dentro da tolerância. Passe o corpo CRU (bytes recebidos)."""
+    """``True`` when authentic and within tolerance. Pass the RAW body (bytes as received)."""
     return check_webhook(raw_body, headers, public_keys, tolerance_seconds=tolerance_seconds, now=now) is None
 
 
@@ -124,11 +124,11 @@ def construct_event(
     tolerance_seconds: int = 300,
     now: Optional[float] = None,
 ) -> Dict[str, Any]:
-    """Verifica e devolve o evento (``id``, ``type``, ``data``, ``metadata``); lança ``WebhookVerificationError``."""
+    """Verifies and returns the event (``id``, ``type``, ``data``, ``metadata``); raises ``WebhookVerificationError``."""
     failure = check_webhook(raw_body, headers, public_keys, tolerance_seconds=tolerance_seconds, now=now)
     if failure:
         raise WebhookVerificationError(_MESSAGES[failure], status=400, code=failure)
     try:
         return json.loads(raw_body)
     except ValueError:
-        raise WebhookVerificationError("Corpo do webhook não é JSON", status=400, code="INVALID_JSON") from None
+        raise WebhookVerificationError("Webhook body is not JSON", status=400, code="INVALID_JSON") from None
