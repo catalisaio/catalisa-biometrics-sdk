@@ -192,22 +192,28 @@
     "file": "handle-errors/ruby.rb"
   },
   {
-    "topic": "web-capture",
+    "topic": "web-capture-link",
     "language": "html",
-    "title": "Abrir a captura na web — HTML — link",
-    "file": "web-capture/link.html"
+    "title": "Abrir a captura na web por link — HTML",
+    "file": "web-capture-link/html.html"
   },
   {
-    "topic": "web-capture",
+    "topic": "web-capture-iframe",
     "language": "html",
-    "title": "Abrir a captura na web — HTML — iframe sem SDK",
-    "file": "web-capture/iframe.html"
+    "title": "Abrir a captura na web em iframe, sem SDK — HTML",
+    "file": "web-capture-iframe/html.html"
   },
   {
-    "topic": "web-capture",
+    "topic": "web-capture-modal",
+    "language": "web",
+    "title": "Abrir a captura em modal com @catalisa/biometrics-web — JavaScript (npm)",
+    "file": "web-capture-modal/web.js"
+  },
+  {
+    "topic": "web-capture-modal",
     "language": "html",
-    "title": "Abrir a captura na web — HTML — modal com @catalisa/biometrics-web",
-    "file": "web-capture/modal-sdk.html"
+    "title": "Abrir a captura em modal com @catalisa/biometrics-web — HTML (CDN)",
+    "file": "web-capture-modal/html.html"
   },
   {
     "topic": "mobile-capture",

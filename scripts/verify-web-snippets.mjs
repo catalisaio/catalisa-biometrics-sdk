@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { JSDOM, VirtualConsole } from 'jsdom'
+import { buildSync } from 'esbuild'
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname)
 const CAPTURE_URL = 'https://biometrics.bb.stg.catalisa.app/biometrics/capture/eyJhbGciOiJIUzI1NiJ9.e30.mock'
@@ -16,7 +17,7 @@ const UMD = readFileSync(join(ROOT, 'packages/web/dist/biometrics-web.umd.js'), 
 const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms))
 
 function load(file, { inlineUmd = false } = {}) {
-  let html = readFileSync(join(ROOT, 'snippets/web-capture', file), 'utf8')
+  let html = readFileSync(join(ROOT, 'snippets', file), 'utf8')
   if (inlineUmd) html = html.replace(/<script src="https:\/\/cdn\.jsdelivr\.net[^"]+"><\/script>/, `<script>${UMD}</script>`)
   const logs = []
   const navigations = []
@@ -49,21 +50,21 @@ function post(window, iframe, event, extra = {}, origin = CAPTURE_ORIGIN, source
 const results = []
 function check(name, ok, note) {
   results.push({ file: name, ok, note })
-  console.log(`${ok ? 'OK ' : 'ERR'} web-capture/${name.padEnd(15)} ${note}`)
+  console.log(`${ok ? 'OK ' : 'ERR'} ${name.padEnd(30)} ${note}`)
 }
 
 // link.html
 {
-  const t = load('link.html')
+  const t = load('web-capture-link/html.html')
   t.window.document.getElementById('verify').click()
   await tick()
   const ok = t.fetchCalls.length === 1 && t.fetchCalls[0].method === 'POST' && t.navigations.length === 1
-  check('link.html', ok, `fetch ${t.fetchCalls.length}x POST, navigation attempted ${t.navigations.length}x`)
+  check('web-capture-link/html.html', ok, `fetch ${t.fetchCalls.length}x POST, navigation attempted ${t.navigations.length}x`)
 }
 
 // iframe.html
 {
-  const t = load('iframe.html')
+  const t = load('web-capture-iframe/html.html')
   await tick()
   const iframe = t.window.document.querySelector('#capture iframe')
   const mounted = iframe && iframe.getAttribute('allow') === 'camera' && iframe.src === CAPTURE_URL
@@ -73,12 +74,12 @@ function check(name, ok, note) {
   post(t.window, iframe, 'done')
   await tick()
   const ok = mounted && ignoredSpoof && t.navigations.length === 1
-  check('iframe.html', ok, `iframe allow=camera ${Boolean(mounted)}, spoofed messages ignored ${ignoredSpoof}, done → navigation ${t.navigations.length}`)
+  check('web-capture-iframe/html.html', ok, `iframe allow=camera ${Boolean(mounted)}, spoofed messages ignored ${ignoredSpoof}, done → navigation ${t.navigations.length}`)
 }
 
 // modal-sdk.html
 {
-  const t = load('modal-sdk.html', { inlineUmd: true })
+  const t = load('web-capture-modal/html.html', { inlineUmd: true })
   const hasGlobal = typeof t.window.CatalisaBiometrics?.openCapture === 'function'
   t.window.document.getElementById('verify').click()
   await tick()
@@ -97,8 +98,29 @@ function check(name, ok, note) {
     t.logs.some((l) => l.startsWith('alert:')) &&
     closed &&
     t.navigations.length === 1
-  check('modal-sdk.html', ok, `UMD global ${hasGlobal}, modal+iframe ${Boolean(iframe)}, step logged, camera alert, auto-closed ${closed}, navigation ${t.navigations.length}`)
+  check('web-capture-modal/html.html', ok, `UMD global ${hasGlobal}, modal+iframe ${Boolean(iframe)}, step logged, camera alert, auto-closed ${closed}, navigation ${t.navigations.length}`)
   if (!ok) console.log(t.logs)
+}
+
+// web-capture-modal/web.js (npm import): bundled with esbuild against the local package, then run in jsdom
+{
+  const bundle = buildSync({
+    entryPoints: [join(ROOT, 'snippets/web-capture-modal/web.js')],
+    bundle: true,
+    format: 'iife',
+    globalName: 'Snippet',
+    write: false,
+    nodePaths: [join(ROOT, 'node_modules')],
+  }).outputFiles[0].text
+  const t = load('web-capture-link/html.html') // any page: we only need a window with fetch stubbed
+  t.window.eval(bundle)
+  await t.window.Snippet.verifyIdentity()
+  const iframe = t.window.document.querySelector('[role="dialog"] iframe')
+  post(t.window, iframe, 'step:BLINK', { index: 1, total: 3, gesture: 'BLINK', durationMs: 4800 })
+  post(t.window, iframe, 'done')
+  await tick(1600)
+  const ok = Boolean(iframe) && iframe.getAttribute('allow') === 'camera' && t.logs.some((l) => l.includes('gesture 2/3: BLINK')) && !t.window.document.querySelector('.cbio-overlay') && t.navigations.length === 1
+  check('web-capture-modal/web.js', ok, `bundled from npm import, modal+iframe ${Boolean(iframe)}, step logged, auto-closed, navigation ${t.navigations.length}`)
 }
 
 const failed = results.filter((r) => !r.ok).length

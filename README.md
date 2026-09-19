@@ -35,7 +35,7 @@ scripts/           mock server, vector generator and the snippet/example verifie
 
 ## Snippets
 
-`snippets/<topic>/<language>.<ext>`, indexed in [`snippets/index.json`](snippets/index.json) (`topic`, `language`, `title`, `file`).
+`snippets/<topic>/<language>.<ext>` (one entry per language per topic), indexed in [`snippets/index.json`](snippets/index.json) (`topic`, `language`, `title`, `file`).
 
 | Topic | Languages |
 |---|---|
@@ -43,7 +43,9 @@ scripts/           mock server, vector generator and the snippet/example verifie
 | `get-session` | same |
 | `verify-webhook` | minimal HTTP server in Node, Python, PHP, Java, Go, C#, Ruby; shell + openssl |
 | `handle-errors` | 402 `QUOTA_EXCEEDED` and 403 `SUBACCOUNT_SUSPENDED` in all 8 |
-| `web-capture` | link, iframe without SDK, modal with the web SDK |
+| `web-capture-link` | html (plain link / redirect) |
+| `web-capture-iframe` | html (iframe without the SDK) |
+| `web-capture-modal` | web (JavaScript with `@catalisa/biometrics-web` from npm), html (CDN bundle) |
 | `mobile-capture` | React Native, Flutter, Android (WebView + Custom Tabs), iOS (WKWebView + SFSafariViewController) |
 
 Environment variables used by the snippets: `CATALISA_API_KEY`, `CATALISA_BIOMETRICS_URL` (optional), `SESSION_ID`, `CATALISA_SUBACCOUNT_ID`, `CATALISA_WEBHOOK_KEYS` (JSON map `keyId → public key PEM`), `PORT`.
@@ -61,7 +63,7 @@ npm run build
 
 ```bash
 node scripts/verify-snippets.mjs          # 32 server snippets; php/go/ruby/C# run in official docker images
-node scripts/verify-web-snippets.mjs      # 3 web snippets in jsdom
+node scripts/verify-web-snippets.mjs      # 4 web snippets in jsdom
 node scripts/verify-example.mjs           # examples/node-server end to end
 ```
 
