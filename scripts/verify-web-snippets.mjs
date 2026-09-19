@@ -2,7 +2,7 @@
 // Runs the web-capture snippets in jsdom (a real DOM, scripts executed) and checks their behavior:
 //  - link.html:      clicking fetches the session and navigates to the captureUrl;
 //  - iframe.html:    mounts <iframe allow="camera">, ignores a spoofed origin, reacts to `done` from the iframe;
-//  - modal-sdk.html: loads the built UMD bundle (instead of the CDN), opens the modal, receives `step`
+//  - web-capture-modal/html.html: loads the built UMD bundle (instead of the CDN), opens the modal, receives `step`
 //                    and closes on `done`, then navigates.
 // The capture page itself (camera, MediaRecorder) is not exercised here; that is the server's page.
 import { readFileSync } from 'node:fs'
@@ -77,7 +77,7 @@ function check(name, ok, note) {
   check('web-capture-iframe/html.html', ok, `iframe allow=camera ${Boolean(mounted)}, spoofed messages ignored ${ignoredSpoof}, done → navigation ${t.navigations.length}`)
 }
 
-// modal-sdk.html
+// web-capture-modal/html.html
 {
   const t = load('web-capture-modal/html.html', { inlineUmd: true })
   const hasGlobal = typeof t.window.CatalisaBiometrics?.openCapture === 'function'
