@@ -1,0 +1,10 @@
+<!-- Capture by link: the simplest option. YOUR server creates the session and returns only the captureUrl.
+     With appearance.redirectUrl set on the session, the page comes back to your site when it finishes. -->
+<button id="verify">Verify identity</button>
+<script>
+  document.getElementById('verify').addEventListener('click', async () => {
+    // YOUR endpoint, which calls POST /sessions with the API key (the key never reaches the browser).
+    const { captureUrl } = await fetch('/api/biometrics/session', { method: 'POST' }).then((r) => r.json())
+    window.location.assign(captureUrl) // or send it by SMS/WhatsApp/e-mail to open on a phone
+  })
+</script>

@@ -1,0 +1,26 @@
+<!-- Capture in an iframe, without the SDK. Prerequisite: this site's origin in the provider's
+     allowedEmbedHosts (PATCH /providers/:id); otherwise the page's frame-ancestors blocks the iframe
+     and no event arrives. -->
+<div id="capture" style="width:100%;max-width:480px;height:720px"></div>
+<script>
+  async function openCapture() {
+    const { captureUrl } = await fetch('/api/biometrics/session', { method: 'POST' }).then((r) => r.json())
+    const captureOrigin = new URL(captureUrl).origin // only accept messages from this origin
+    const iframe = document.createElement('iframe')
+    iframe.src = captureUrl
+    iframe.setAttribute('allow', 'camera') // required: delegates the camera to the iframe
+    iframe.style.cssText = 'border:0;width:100%;height:100%'
+    document.getElementById('capture').appendChild(iframe)
+
+    window.addEventListener('message', (e) => {
+      if (e.origin !== captureOrigin || e.source !== iframe.contentWindow) return
+      if (e.data?.source !== 'catalisa-biometrics') return
+      // Events: ready, capturing, step:<GESTURE>, submitted, retry, done, expired, error, guide
+      if (e.data.event === 'done') {
+        // The page does NOT say whether it was approved. The result reaches your server via webhook.
+        window.location.href = '/signup/under-review'
+      }
+    })
+  }
+  openCapture()
+</script>

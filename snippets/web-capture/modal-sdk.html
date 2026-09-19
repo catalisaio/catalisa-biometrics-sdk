@@ -1,0 +1,21 @@
+<!-- Capture in a modal with the web SDK (CDN). Same prerequisite as the iframe: allowedEmbedHosts. -->
+<script src="https://cdn.jsdelivr.net/npm/@catalisa/biometrics-web@0.1.0/dist/biometrics-web.umd.js"></script>
+<button id="verify">Verify identity</button>
+<script>
+  document.getElementById('verify').addEventListener('click', async () => {
+    const { captureUrl } = await fetch('/api/biometrics/session', { method: 'POST' }).then((r) => r.json())
+
+    CatalisaBiometrics.openCapture({
+      captureUrl,
+      mode: 'modal', // or 'iframe' with container: '#capture', or 'redirect'
+      onEvent(event) {
+        if (event.type === 'step') console.log(`gesture ${event.index + 1}/${event.total}: ${event.gesture}`)
+        if (event.type === 'error' && event.reason === 'camera') alert('Please allow camera access to continue.')
+      },
+      onClose(reason) {
+        // 'done' = the person finished. The result comes in the webhook, not here.
+        if (reason === 'done') window.location.href = '/signup/under-review'
+      },
+    })
+  })
+</script>

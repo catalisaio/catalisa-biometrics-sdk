@@ -1,0 +1,236 @@
+[
+  {
+    "topic": "create-session",
+    "language": "curl",
+    "title": "Criar uma sessão — curl",
+    "file": "create-session/curl.sh"
+  },
+  {
+    "topic": "create-session",
+    "language": "node",
+    "title": "Criar uma sessão — Node.js (SDK)",
+    "file": "create-session/node.mjs"
+  },
+  {
+    "topic": "create-session",
+    "language": "python",
+    "title": "Criar uma sessão — Python (SDK)",
+    "file": "create-session/python.py"
+  },
+  {
+    "topic": "create-session",
+    "language": "php",
+    "title": "Criar uma sessão — PHP",
+    "file": "create-session/php.php"
+  },
+  {
+    "topic": "create-session",
+    "language": "java",
+    "title": "Criar uma sessão — Java",
+    "file": "create-session/java.java"
+  },
+  {
+    "topic": "create-session",
+    "language": "go",
+    "title": "Criar uma sessão — Go",
+    "file": "create-session/go.go"
+  },
+  {
+    "topic": "create-session",
+    "language": "csharp",
+    "title": "Criar uma sessão — C#",
+    "file": "create-session/csharp.cs"
+  },
+  {
+    "topic": "create-session",
+    "language": "ruby",
+    "title": "Criar uma sessão — Ruby",
+    "file": "create-session/ruby.rb"
+  },
+  {
+    "topic": "get-session",
+    "language": "curl",
+    "title": "Consultar uma sessão — curl",
+    "file": "get-session/curl.sh"
+  },
+  {
+    "topic": "get-session",
+    "language": "node",
+    "title": "Consultar uma sessão — Node.js (SDK)",
+    "file": "get-session/node.mjs"
+  },
+  {
+    "topic": "get-session",
+    "language": "python",
+    "title": "Consultar uma sessão — Python (SDK)",
+    "file": "get-session/python.py"
+  },
+  {
+    "topic": "get-session",
+    "language": "php",
+    "title": "Consultar uma sessão — PHP",
+    "file": "get-session/php.php"
+  },
+  {
+    "topic": "get-session",
+    "language": "java",
+    "title": "Consultar uma sessão — Java",
+    "file": "get-session/java.java"
+  },
+  {
+    "topic": "get-session",
+    "language": "go",
+    "title": "Consultar uma sessão — Go",
+    "file": "get-session/go.go"
+  },
+  {
+    "topic": "get-session",
+    "language": "csharp",
+    "title": "Consultar uma sessão — C#",
+    "file": "get-session/csharp.cs"
+  },
+  {
+    "topic": "get-session",
+    "language": "ruby",
+    "title": "Consultar uma sessão — Ruby",
+    "file": "get-session/ruby.rb"
+  },
+  {
+    "topic": "verify-webhook",
+    "language": "shell",
+    "title": "Receber e verificar o webhook — Shell (openssl) — conferir uma entrega",
+    "file": "verify-webhook/curl.sh"
+  },
+  {
+    "topic": "verify-webhook",
+    "language": "node",
+    "title": "Receber e verificar o webhook — Node.js (SDK)",
+    "file": "verify-webhook/node.mjs"
+  },
+  {
+    "topic": "verify-webhook",
+    "language": "python",
+    "title": "Receber e verificar o webhook — Python (SDK)",
+    "file": "verify-webhook/python.py"
+  },
+  {
+    "topic": "verify-webhook",
+    "language": "php",
+    "title": "Receber e verificar o webhook — PHP",
+    "file": "verify-webhook/php.php"
+  },
+  {
+    "topic": "verify-webhook",
+    "language": "java",
+    "title": "Receber e verificar o webhook — Java",
+    "file": "verify-webhook/java.java"
+  },
+  {
+    "topic": "verify-webhook",
+    "language": "go",
+    "title": "Receber e verificar o webhook — Go",
+    "file": "verify-webhook/go.go"
+  },
+  {
+    "topic": "verify-webhook",
+    "language": "csharp",
+    "title": "Receber e verificar o webhook — C#",
+    "file": "verify-webhook/csharp.cs"
+  },
+  {
+    "topic": "verify-webhook",
+    "language": "ruby",
+    "title": "Receber e verificar o webhook — Ruby",
+    "file": "verify-webhook/ruby.rb"
+  },
+  {
+    "topic": "handle-errors",
+    "language": "curl",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — curl",
+    "file": "handle-errors/curl.sh"
+  },
+  {
+    "topic": "handle-errors",
+    "language": "node",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Node.js (SDK)",
+    "file": "handle-errors/node.mjs"
+  },
+  {
+    "topic": "handle-errors",
+    "language": "python",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Python (SDK)",
+    "file": "handle-errors/python.py"
+  },
+  {
+    "topic": "handle-errors",
+    "language": "php",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — PHP",
+    "file": "handle-errors/php.php"
+  },
+  {
+    "topic": "handle-errors",
+    "language": "java",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Java",
+    "file": "handle-errors/java.java"
+  },
+  {
+    "topic": "handle-errors",
+    "language": "go",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Go",
+    "file": "handle-errors/go.go"
+  },
+  {
+    "topic": "handle-errors",
+    "language": "csharp",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — C#",
+    "file": "handle-errors/csharp.cs"
+  },
+  {
+    "topic": "handle-errors",
+    "language": "ruby",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Ruby",
+    "file": "handle-errors/ruby.rb"
+  },
+  {
+    "topic": "web-capture",
+    "language": "html",
+    "title": "Abrir a captura na web — HTML — link",
+    "file": "web-capture/link.html"
+  },
+  {
+    "topic": "web-capture",
+    "language": "html",
+    "title": "Abrir a captura na web — HTML — iframe sem SDK",
+    "file": "web-capture/iframe.html"
+  },
+  {
+    "topic": "web-capture",
+    "language": "html",
+    "title": "Abrir a captura na web — HTML — modal com @catalisa/biometrics-web",
+    "file": "web-capture/modal-sdk.html"
+  },
+  {
+    "topic": "mobile-capture",
+    "language": "react-native",
+    "title": "Captura em app mobile — React Native (WebView)",
+    "file": "mobile-capture/react-native.tsx"
+  },
+  {
+    "topic": "mobile-capture",
+    "language": "flutter",
+    "title": "Captura em app mobile — Flutter (webview_flutter)",
+    "file": "mobile-capture/flutter.dart"
+  },
+  {
+    "topic": "mobile-capture",
+    "language": "kotlin",
+    "title": "Captura em app mobile — Android — WebView e Custom Tabs",
+    "file": "mobile-capture/android.kt"
+  },
+  {
+    "topic": "mobile-capture",
+    "language": "swift",
+    "title": "Captura em app mobile — iOS — WKWebView e SFSafariViewController",
+    "file": "mobile-capture/ios.swift"
+  }
+]

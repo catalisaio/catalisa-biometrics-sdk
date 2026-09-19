@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Biometrics example</title>
+<script src="/biometrics-web.umd.js"></script>
+<main style="font-family: system-ui; max-width: 32rem; margin: 3rem auto; padding: 0 1rem">
+  <h1>Open an account</h1>
+  <p id="status">We need to confirm it is you.</p>
+  <button id="verify">Verify identity</button>
+</main>
+<script>
+  const status = document.getElementById('status')
+  document.getElementById('verify').addEventListener('click', async () => {
+    const res = await fetch('/api/biometrics/session', { method: 'POST' })
+    if (!res.ok) return (status.textContent = 'Verification is unavailable right now.')
+    const { sessionId, captureUrl } = await res.json()
+
+    CatalisaBiometrics.openCapture({
+      captureUrl,
+      onEvent(event) {
+        if (event.type === 'error' && event.reason === 'camera') status.textContent = 'Please allow camera access.'
+      },
+      async onClose(reason) {
+        if (reason !== 'done') return
+        status.textContent = 'Thanks! We are reviewing your verification…'
+        // The decision is on the server (webhook). Poll your own endpoint, which never exposes scores.
+        for (let i = 0; i < 20; i++) {
+          const r = await fetch(`/api/biometrics/result?sessionId=${sessionId}`).then((x) => x.json())
+          if (r.finished) return (status.textContent = 'Done. We will email you the next steps.')
+          await new Promise((ok) => setTimeout(ok, 1500))
+        }
+      },
+    })
+  })
+</script>
