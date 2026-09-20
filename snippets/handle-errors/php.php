@@ -1,29 +1,29 @@
 <?php
-// Handles 402 (subaccount quota) and 403 (suspended subaccount) when creating a session.
-$baseUrl = getenv('CATALISA_BIOMETRICS_URL') ?: 'https://api.biometrics.catalisa.app/v1';
+require __DIR__ . '/vendor/autoload.php';
 
-$ch = curl_init("$baseUrl/sessions");
-curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER => [
-        'X-API-Key: ' . getenv('CATALISA_API_KEY'),
-        'X-Subaccount-Id: ' . getenv('CATALISA_SUBACCOUNT_ID'),
-        'Content-Type: application/json',
-    ],
-    CURLOPT_POSTFIELDS => json_encode(['flow' => 'LIVENESS_ONLY', 'purpose' => 'abertura de conta']),
-]);
-$body = json_decode(curl_exec($ch), true);
-$status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-$code = $body['details']['code'] ?? $body['error'] ?? '';
+use Catalisa\Biometrics\BiometricsException;
+use Catalisa\Biometrics\Client;
 
-if ($status === 201) {
-    echo "ok: {$body['data']['handoff']['captureUrl']}\n";
-} elseif ($status === 402 && $code === 'QUOTA_EXCEEDED') {
-    echo "blocked: QUOTA_EXCEEDED — monthly quota used ({$body['details']['used']}/{$body['details']['monthlyQuota']})\n";
-} elseif ($status === 403 && $code === 'SUBACCOUNT_SUSPENDED') {
-    echo "blocked: SUBACCOUNT_SUSPENDED — subaccount suspended\n";
-} else {
-    fwrite(STDERR, "error $status: $code\n");
-    exit(1);
+$bio = new Client(
+    apiKey: getenv('CATALISA_API_KEY'),
+    baseUrl: getenv('CATALISA_BIOMETRICS_URL') ?: 'https://api.biometrics.catalisa.app/v1',
+    // organization key acting on behalf of the subaccount
+    subaccountId: getenv('CATALISA_SUBACCOUNT_ID') ?: null,
+);
+
+try {
+    $session = $bio->createSession(['flow' => 'LIVENESS_ONLY', 'purpose' => 'abertura de conta']);
+    echo 'ok: ' . $session['handoff']['captureUrl'] . PHP_EOL;
+} catch (BiometricsException $e) {
+    if ($e->isQuotaExceeded()) {          // 402
+        printf("blocked: %s — monthly quota used (%d/%d)\n",
+            $e->errorCode, $e->details['used'], $e->details['monthlyQuota']);
+    } elseif ($e->isSubaccountSuspended()) { // 403
+        printf("blocked: %s — subaccount suspended\n", $e->errorCode);
+    } elseif ($e->status === 429) {          // the SDK already retried
+        printf("rate limited; retry in %d s\n", $e->retryAfter ?? 1);
+    } else {
+        fwrite(STDERR, sprintf("error %d: %s (requestId %s)\n", $e->status, $e->errorCode, $e->requestId ?? '-'));
+        exit(1);
+    }
 }

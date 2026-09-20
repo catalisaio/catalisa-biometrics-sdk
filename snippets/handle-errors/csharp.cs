@@ -1,34 +1,37 @@
-// Handles 402 (quota) and 403 (suspended subaccount) when creating a session (.NET 8+, BCL only).
-using System.Net;
-using System.Text;
-using System.Text.Json;
+#:package Catalisa.Biometrics@0.1.0
+// A file-based app builds AOT-ready, where reflection-based JSON is off; the SDK uses it.
+#:property JsonSerializerIsReflectionEnabledByDefault=true
+using Catalisa.Biometrics;
 
-var baseUrl = Environment.GetEnvironmentVariable("CATALISA_BIOMETRICS_URL") ?? "https://api.biometrics.catalisa.app/v1";
-using var http = new HttpClient();
-http.DefaultRequestHeaders.Add("X-API-Key", Environment.GetEnvironmentVariable("CATALISA_API_KEY"));
-http.DefaultRequestHeaders.Add("X-Subaccount-Id", Environment.GetEnvironmentVariable("CATALISA_SUBACCOUNT_ID"));
-
-var json = """{"flow":"LIVENESS_ONLY","purpose":"abertura de conta"}""";
-var res = await http.PostAsync($"{baseUrl}/sessions", new StringContent(json, Encoding.UTF8, "application/json"));
-using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-var body = doc.RootElement;
-var hasDetails = body.TryGetProperty("details", out var details) && details.ValueKind == JsonValueKind.Object;
-var code = hasDetails && details.TryGetProperty("code", out var c) ? c.GetString()
-    : body.TryGetProperty("error", out var err) ? err.GetString() : "";
-
-switch (res.StatusCode)
+using var bio = new BiometricsClient(new BiometricsOptions
 {
-    case HttpStatusCode.Created:
-        Console.WriteLine("ok: " + body.GetProperty("data").GetProperty("handoff").GetProperty("captureUrl").GetString());
-        break;
-    case HttpStatusCode.PaymentRequired when code == "QUOTA_EXCEEDED":
-        Console.WriteLine($"blocked: {code} — monthly quota used ({details.GetProperty("used")}/{details.GetProperty("monthlyQuota")})");
-        break;
-    case HttpStatusCode.Forbidden when code == "SUBACCOUNT_SUSPENDED":
-        Console.WriteLine($"blocked: {code} — subaccount suspended");
-        break;
-    default:
-        Console.Error.WriteLine($"error {(int)res.StatusCode}: {code}");
-        return 1;
+    ApiKey = Environment.GetEnvironmentVariable("CATALISA_API_KEY")!,
+    BaseUrl = Environment.GetEnvironmentVariable("CATALISA_BIOMETRICS_URL") ?? BiometricsClient.DefaultBaseUrl,
+    // organization key acting on behalf of the subaccount
+    SubaccountId = Environment.GetEnvironmentVariable("CATALISA_SUBACCOUNT_ID"),
+});
+
+try
+{
+    var session = await bio.CreateSessionAsync(new CreateSessionInput { Flow = Flows.LivenessOnly, Purpose = "abertura de conta" });
+    Console.WriteLine($"ok: {session.Handoff!.CaptureUrl}");
 }
+catch (BiometricsException e) when (e.IsQuotaExceeded) // 402
+{
+    Console.WriteLine($"blocked: {e.ErrorCode} — monthly quota used ({e.Details["used"]}/{e.Details["monthlyQuota"]})");
+}
+catch (BiometricsException e) when (e.IsSubaccountSuspended) // 403
+{
+    Console.WriteLine($"blocked: {e.ErrorCode} — subaccount suspended");
+}
+catch (BiometricsException e) when (e.Status == 429) // the SDK already retried
+{
+    Console.WriteLine($"rate limited; retry in {e.RetryAfter ?? 1} s");
+}
+catch (BiometricsException e)
+{
+    Console.Error.WriteLine($"error {e.Status}: {e.ErrorCode} (requestId {e.RequestId})");
+    return 1;
+}
+
 return 0;

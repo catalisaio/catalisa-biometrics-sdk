@@ -1,40 +1,41 @@
-// Receives the Biometrics webhook and verifies the signature (.NET 8+, BCL only). With .NET 10: dotnet run csharp.cs
+// Minimal server that receives the Biometrics webhook and verifies the signature.
 // CATALISA_WEBHOOK_KEYS = {"whk_…":"-----BEGIN PUBLIC KEY-----…"}
-using System.Collections.Specialized;
-using System.Net;
-using System.Security.Cryptography;
-using System.Text;
+#:sdk Microsoft.NET.Sdk.Web
+#:package Catalisa.Biometrics@0.1.0
+// A file-based app builds AOT-ready, where reflection-based JSON is off; the SDK uses it.
+#:property JsonSerializerIsReflectionEnabledByDefault=true
 using System.Text.Json;
+using Catalisa.Biometrics;
 
-var publicKeys = new Dictionary<string, string>();
-using (var doc = JsonDocument.Parse(Environment.GetEnvironmentVariable("CATALISA_WEBHOOK_KEYS")!))
-    foreach (var p in doc.RootElement.EnumerateObject()) publicKeys[p.Name] = p.Value.GetString()!;
+var keys = JsonSerializer.Deserialize<Dictionary<string, string>>(
+    Environment.GetEnvironmentVariable("CATALISA_WEBHOOK_KEYS")!)!;
+var verifier = new WebhookVerifier(keys); // tolerance: 5 min
 
-var listener = new HttpListener();
-listener.Prefixes.Add($"http://*:{Environment.GetEnvironmentVariable("PORT") ?? "3000"}/webhooks/biometrics/");
-listener.Start();
+var builder = WebApplication.CreateBuilder();
+var app = builder.Build();
 
-while (true)
+app.MapPost("/webhooks/biometrics", async (HttpRequest request) =>
 {
-    var ctx = await listener.GetContextAsync();
-    using var ms = new MemoryStream();
-    await ctx.Request.InputStream.CopyToAsync(ms);
-    var rawBody = ms.ToArray(); // RAW body
-    var valid = Verify(rawBody, ctx.Request.Headers);
-    if (valid) Console.WriteLine("webhook ok: " + Encoding.UTF8.GetString(rawBody)); // idempotency: the body's "id"
-    ctx.Response.StatusCode = valid ? 200 : 400;
-    ctx.Response.Close();
-}
+    using var reader = new StreamReader(request.Body);
+    var rawBody = await reader.ReadToEndAsync(); // RAW body: re-encoding it breaks the signature
 
-bool Verify(byte[] body, NameValueCollection h)
-{
-    string? id = h["x-webhook-id"], timestamp = h["x-webhook-timestamp"], keyId = h["x-webhook-key-id"], signature = h["x-webhook-signature"];
-    if (id is null || timestamp is null || keyId is null || signature is null || !signature.StartsWith("v1=")) return false;
-    if (!DateTimeOffset.TryParse(timestamp, out var sentAt) || Math.Abs((DateTimeOffset.UtcNow - sentAt).TotalSeconds) > 300) return false;
-    if (!publicKeys.TryGetValue(keyId, out var pem)) return false;
-    using var rsa = RSA.Create();
-    rsa.ImportFromPem(pem);
-    var message = Encoding.UTF8.GetBytes($"{id}\n{timestamp}\n").Concat(body).ToArray();
-    try { return rsa.VerifyData(message, Convert.FromBase64String(signature[3..]), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1); }
-    catch (FormatException) { return false; }
-}
+    try
+    {
+        var evt = verifier.Verify(name => request.Headers[name].FirstOrDefault(), rawBody);
+
+        // evt.Id is stable: use it for idempotency, a delivery can repeat
+        if (evt.Type == WebhookEvents.SessionCompleted)
+        {
+            Console.WriteLine($"session {evt.Data.GetProperty("sessionId")} → {evt.Data.GetProperty("outcome")}");
+        }
+
+        return Results.Ok("ok"); // answer fast; do the work afterwards
+    }
+    catch (WebhookVerificationException e)
+    {
+        Console.Error.WriteLine($"webhook rejected: {e.Failure}");
+        return Results.BadRequest("invalid signature");
+    }
+});
+
+app.Run($"http://0.0.0.0:{Environment.GetEnvironmentVariable("PORT") ?? "3000"}");

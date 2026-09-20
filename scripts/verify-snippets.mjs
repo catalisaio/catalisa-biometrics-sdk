@@ -25,11 +25,11 @@ const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(',')) : null
 const has = (bin) => spawnSync('sh', ['-c', `command -v ${bin}`]).status === 0
 
 const IMAGES = {
-  php: 'php:8.3-cli',
+  php: 'composer:2', // traz PHP 8 e o composer; a imagem php:cli não tem o composer
   go: 'golang:1.23-alpine',
   ruby: 'ruby:3.3-slim',
   csharp: 'mcr.microsoft.com/dotnet/sdk:10.0',
-  java: 'eclipse-temurin:17-jdk',
+  java: 'maven:3.9-eclipse-temurin-17',
 }
 
 // How to run each language. `file` is relative to the repo root.
@@ -40,20 +40,50 @@ function command(lang, file, env, { server = false, port } = {}) {
   if (lang === 'python') {
     return { cmd: 'python3', args: [abs], env: { ...env, PYTHONPATH: join(ROOT, 'packages/python/src'), PYTHONDONTWRITEBYTECODE: '1' }, runtime: 'host python3' }
   }
-  if (lang === 'java' && has('java')) return { cmd: 'java', args: [abs], env, runtime: 'host java' }
   const image = IMAGES[lang]
   if (!image) throw new Error(`no runtime for ${lang}`)
+  // The snippets now use the published SDKs, so each language installs its
+  // package before running — from the registry, exactly as a reader would. The
+  // snippet is copied out of the read-only mount first, because installing
+  // writes next to it (vendor/, go.mod, the project file).
+  const base = file.replace(/.*\//, '')
   const inner = {
-    php: server ? ['php', '-S', `0.0.0.0:${port}`, `/r/${file}`] : ['php', `/r/${file}`],
-    go: ['go', 'run', `/r/${file}`],
-    ruby: ['ruby', `/r/${file}`],
-    csharp: ['dotnet', 'run', `/r/${file}`],
-    java: ['java', `/r/${file}`],
+    php: [
+      'sh', '-c',
+      `set -e; mkdir -p /w && cp /r/${file} /w/${base}; cd /w; ` +
+        'composer require --quiet --no-interaction catalisa/biometrics >/dev/null; ' +
+        (server ? `php -S 0.0.0.0:${port} /w/${base}` : `php /w/${base}`),
+    ],
+    go: [
+      'sh', '-c',
+      `set -e; mkdir -p /w && cp /r/${file} /w/main.go; cd /w; ` +
+        'go mod init snippet >/dev/null 2>&1; ' +
+        'go get github.com/catalisaio/catalisa-biometrics-sdk/packages/go@latest >/dev/null 2>&1; ' +
+        'go run .',
+    ],
+    ruby: [
+      'sh', '-c',
+      `gem install --silent --no-document catalisa-biometrics webrick >/dev/null 2>&1; ruby /r/${file}`,
+    ],
+    // .NET 10 reads `#:package` from the file itself and restores it.
+    csharp: ['sh', '-c', `mkdir -p /w && cp /r/${file} /w/${base}; dotnet run /w/${base}`],
+    java: [
+      'sh', '-c',
+      `set -e; mkdir -p /w && cp /r/${file} /w/${base}; cd /w; ` +
+        'mvn -q -B dependency:get -Dartifact=io.github.catalisaio:catalisa-biometrics:0.1.0 >/dev/null; ' +
+        'mvn -q -B dependency:build-classpath -Dmdep.outputFile=/w/cp.txt ' +
+        '-f /r/scripts/snippet-java-pom.xml >/dev/null; ' +
+        `java -cp "$(cat /w/cp.txt)" /w/${base}`,
+    ],
   }[lang]
   const name = `cbio-verify-${lang}-${process.pid}-${Math.random().toString(36).slice(2, 7)}`
   const envArgs = Object.entries(env).filter(([k]) => /^(CATALISA_|SESSION_ID|PORT)/.test(k)).flatMap(([k, v]) => ['-e', `${k}=${v}`])
   const volumes = ['-v', `${ROOT}:/r:ro`]
-  if (lang === 'go') volumes.push('-v', 'cbio-go-cache:/root/.cache/go-build')
+  if (lang === 'go') volumes.push('-v', 'cbio-go-cache:/root/.cache/go-build', '-v', 'cbio-go-mod:/go/pkg/mod')
+  if (lang === 'java') volumes.push('-v', 'cbio-m2:/root/.m2')
+  if (lang === 'php') volumes.push('-v', 'cbio-composer:/tmp/composer'), envArgs.push('-e', 'COMPOSER_HOME=/tmp/composer')
+  if (lang === 'ruby') volumes.push('-v', 'cbio-gems:/usr/local/bundle')
+  if (lang === 'csharp') volumes.push('-v', 'cbio-nuget:/root/.nuget')
   if (lang === 'csharp') {
     // No lingering build servers: they keep `dotnet run` (PID 1) alive after the program exits.
     for (const kv of ['DOTNET_CLI_TELEMETRY_OPTOUT=1', 'DOTNET_NOLOGO=1', 'MSBUILDDISABLENODEREUSE=1', 'DOTNET_CLI_USE_MSBUILD_SERVER=0', 'UseSharedCompilation=false']) envArgs.push('-e', kv)

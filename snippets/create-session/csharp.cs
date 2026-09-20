@@ -1,27 +1,21 @@
-// Creates a liveness session (.NET 8+, BCL only). With .NET 10: dotnet run csharp.cs
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+// dotnet add package Catalisa.Biometrics  (.NET 10 runs this file directly: dotnet run csharp.cs)
+#:package Catalisa.Biometrics@0.1.0
+// A file-based app builds AOT-ready, where reflection-based JSON is off; the SDK uses it.
+#:property JsonSerializerIsReflectionEnabledByDefault=true
+using Catalisa.Biometrics;
 
-var baseUrl = Environment.GetEnvironmentVariable("CATALISA_BIOMETRICS_URL") ?? "https://api.biometrics.catalisa.app/v1";
-using var http = new HttpClient();
-http.DefaultRequestHeaders.Add("X-API-Key", Environment.GetEnvironmentVariable("CATALISA_API_KEY"));
-
-var payload = new JsonObject
+using var bio = new BiometricsClient(new BiometricsOptions
 {
-    ["flow"] = "LIVENESS_ONLY",
-    ["purpose"] = "abertura de conta",
-    ["metadata"] = new JsonObject { ["orderId"] = "123" },
-};
-var res = await http.PostAsync($"{baseUrl}/sessions", new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json"));
-using var body = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+    ApiKey = Environment.GetEnvironmentVariable("CATALISA_API_KEY")!,
+    BaseUrl = Environment.GetEnvironmentVariable("CATALISA_BIOMETRICS_URL") ?? BiometricsClient.DefaultBaseUrl,
+});
 
-if ((int)res.StatusCode != 201)
+var session = await bio.CreateSessionAsync(new CreateSessionInput
 {
-    Console.Error.WriteLine($"Error {(int)res.StatusCode}: {body.RootElement}");
-    return 1;
-}
-var data = body.RootElement.GetProperty("data");
-Console.WriteLine($"sessionId: {data.GetProperty("sessionId").GetString()}");
-Console.WriteLine($"captureUrl: {data.GetProperty("handoff").GetProperty("captureUrl").GetString()}");
-return 0;
+    Flow = Flows.LivenessOnly,
+    Purpose = "abertura de conta",
+    Metadata = new Dictionary<string, string> { ["orderId"] = "123" },
+});
+
+Console.WriteLine($"sessionId: {session.SessionId}");
+Console.WriteLine($"captureUrl: {session.Handoff!.CaptureUrl}"); // send the person here

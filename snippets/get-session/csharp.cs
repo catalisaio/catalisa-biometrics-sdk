@@ -1,24 +1,29 @@
-// Reads the session envelope (.NET 8+, BCL only). With .NET 10: SESSION_ID=… dotnet run csharp.cs
-using System.Text.Json;
+#:package Catalisa.Biometrics@0.1.0
+// A file-based app builds AOT-ready, where reflection-based JSON is off; the SDK uses it.
+#:property JsonSerializerIsReflectionEnabledByDefault=true
+using Catalisa.Biometrics;
 
-var baseUrl = Environment.GetEnvironmentVariable("CATALISA_BIOMETRICS_URL") ?? "https://api.biometrics.catalisa.app/v1";
-var id = Uri.EscapeDataString(Environment.GetEnvironmentVariable("SESSION_ID")!);
-using var http = new HttpClient();
-http.DefaultRequestHeaders.Add("X-API-Key", Environment.GetEnvironmentVariable("CATALISA_API_KEY"));
+using var bio = new BiometricsClient(new BiometricsOptions
+{
+    ApiKey = Environment.GetEnvironmentVariable("CATALISA_API_KEY")!,
+    BaseUrl = Environment.GetEnvironmentVariable("CATALISA_BIOMETRICS_URL") ?? BiometricsClient.DefaultBaseUrl,
+});
 
-var res = await http.GetAsync($"{baseUrl}/sessions/{id}");
-if (!res.IsSuccessStatusCode)
+try
 {
-    Console.Error.WriteLine($"Error {(int)res.StatusCode}");
-    return 1;
+    var session = await bio.GetSessionAsync(Environment.GetEnvironmentVariable("SESSION_ID")!);
+    Console.WriteLine($"status: {session.Status}");
+    if (session.Decision is not null)
+    {
+        var reasons = string.Join(", ", session.Decision.Reasons);
+        Console.WriteLine($"decision: {session.Decision.Outcome} {(reasons.Length == 0 ? "(no reasons)" : reasons)}");
+        foreach (var check in session.Checks)
+        {
+            Console.WriteLine($" - {check.Kind}: {check.Status} (score {check.Score} / threshold {check.Threshold})");
+        }
+    }
 }
-using var body = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-var session = body.RootElement.GetProperty("data");
-Console.WriteLine($"status: {session.GetProperty("status").GetString()}");
-if (session.GetProperty("decision").ValueKind == JsonValueKind.Object)
+catch (BiometricsException e) when (e.Status == 404)
 {
-    Console.WriteLine($"decision: {session.GetProperty("decision").GetProperty("outcome").GetString()}");
-    foreach (var c in session.GetProperty("checks").EnumerateArray())
-        Console.WriteLine($" - {c.GetProperty("kind")}: {c.GetProperty("status")} (score {c.GetProperty("score")} / threshold {c.GetProperty("threshold")})");
+    Console.WriteLine("Session not found (or owned by another organization)");
 }
-return 0;

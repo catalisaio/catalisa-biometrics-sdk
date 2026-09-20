@@ -1,30 +1,28 @@
 <?php
-// Receives the Biometrics webhook and verifies the signature (PHP 8 + ext-openssl).
-// Run: php -S 0.0.0.0:3000 php.php   |   CATALISA_WEBHOOK_KEYS = {"whk_…":"-----BEGIN PUBLIC KEY-----…"}
-function header_value(string $name): ?string {
-    return $_SERVER['HTTP_' . strtoupper(str_replace('-', '_', $name))] ?? null;
-}
+// Minimal server that receives the Biometrics webhook and verifies the signature.
+// Run: php -S 0.0.0.0:3000 php.php
+// CATALISA_WEBHOOK_KEYS = {"whk_…":"-----BEGIN PUBLIC KEY-----…"}
+require __DIR__ . '/vendor/autoload.php';
 
-$rawBody = file_get_contents('php://input'); // RAW body
-$id = header_value('x-webhook-id');
-$timestamp = header_value('x-webhook-timestamp');
-$keyId = header_value('x-webhook-key-id');
-$signature = header_value('x-webhook-signature');
-$publicKeys = json_decode(getenv('CATALISA_WEBHOOK_KEYS'), true);
+use Catalisa\Biometrics\WebhookVerificationException;
+use Catalisa\Biometrics\WebhookVerifier;
 
-$valid = $id && $timestamp && $keyId && $signature
-    && abs(time() - strtotime($timestamp)) <= 300           // replay tolerance
-    && isset($publicKeys[$keyId])                            // key selected by key id
-    && str_starts_with($signature, 'v1=')
-    && openssl_verify("$id\n$timestamp\n$rawBody", base64_decode(substr($signature, 3)), $publicKeys[$keyId], OPENSSL_ALGO_SHA256) === 1;
+$verifier = new WebhookVerifier(json_decode(getenv('CATALISA_WEBHOOK_KEYS'), true)); // tolerance: 300 s
 
-if (!$valid) {
+$rawBody = file_get_contents('php://input'); // RAW body: re-encoding it breaks the signature
+
+try {
+    $event = $verifier->verify($_SERVER, $rawBody);
+} catch (WebhookVerificationException $e) {
+    error_log('webhook rejected: ' . $e->failure);
     http_response_code(400);
     exit('invalid signature');
 }
-$event = json_decode($rawBody, true);
-// Idempotency: use $event['id'] (stable), not the x-webhook-id header.
+
+// $event['id'] is stable: use it for idempotency, a delivery can repeat
 if ($event['type'] === 'biometrics.session.completed') {
     error_log("session {$event['data']['sessionId']} → {$event['data']['outcome']}");
 }
+
+http_response_code(200); // answer fast; do the work afterwards
 echo 'ok';

@@ -20,31 +20,31 @@
   {
     "topic": "create-session",
     "language": "php",
-    "title": "Criar uma sessão — PHP",
+    "title": "Criar uma sessão — PHP (SDK)",
     "file": "create-session/php.php"
   },
   {
     "topic": "create-session",
     "language": "java",
-    "title": "Criar uma sessão — Java",
+    "title": "Criar uma sessão — Java (SDK)",
     "file": "create-session/java.java"
   },
   {
     "topic": "create-session",
     "language": "go",
-    "title": "Criar uma sessão — Go",
+    "title": "Criar uma sessão — Go (SDK)",
     "file": "create-session/go.go"
   },
   {
     "topic": "create-session",
     "language": "csharp",
-    "title": "Criar uma sessão — C#",
+    "title": "Criar uma sessão — C# (SDK)",
     "file": "create-session/csharp.cs"
   },
   {
     "topic": "create-session",
     "language": "ruby",
-    "title": "Criar uma sessão — Ruby",
+    "title": "Criar uma sessão — Ruby (SDK)",
     "file": "create-session/ruby.rb"
   },
   {
@@ -68,31 +68,31 @@
   {
     "topic": "get-session",
     "language": "php",
-    "title": "Consultar uma sessão — PHP",
+    "title": "Consultar uma sessão — PHP (SDK)",
     "file": "get-session/php.php"
   },
   {
     "topic": "get-session",
     "language": "java",
-    "title": "Consultar uma sessão — Java",
+    "title": "Consultar uma sessão — Java (SDK)",
     "file": "get-session/java.java"
   },
   {
     "topic": "get-session",
     "language": "go",
-    "title": "Consultar uma sessão — Go",
+    "title": "Consultar uma sessão — Go (SDK)",
     "file": "get-session/go.go"
   },
   {
     "topic": "get-session",
     "language": "csharp",
-    "title": "Consultar uma sessão — C#",
+    "title": "Consultar uma sessão — C# (SDK)",
     "file": "get-session/csharp.cs"
   },
   {
     "topic": "get-session",
     "language": "ruby",
-    "title": "Consultar uma sessão — Ruby",
+    "title": "Consultar uma sessão — Ruby (SDK)",
     "file": "get-session/ruby.rb"
   },
   {
@@ -116,31 +116,31 @@
   {
     "topic": "verify-webhook",
     "language": "php",
-    "title": "Receber e verificar o webhook — PHP",
+    "title": "Receber e verificar o webhook — PHP (SDK)",
     "file": "verify-webhook/php.php"
   },
   {
     "topic": "verify-webhook",
     "language": "java",
-    "title": "Receber e verificar o webhook — Java",
+    "title": "Receber e verificar o webhook — Java (SDK)",
     "file": "verify-webhook/java.java"
   },
   {
     "topic": "verify-webhook",
     "language": "go",
-    "title": "Receber e verificar o webhook — Go",
+    "title": "Receber e verificar o webhook — Go (SDK)",
     "file": "verify-webhook/go.go"
   },
   {
     "topic": "verify-webhook",
     "language": "csharp",
-    "title": "Receber e verificar o webhook — C#",
+    "title": "Receber e verificar o webhook — C# (SDK)",
     "file": "verify-webhook/csharp.cs"
   },
   {
     "topic": "verify-webhook",
     "language": "ruby",
-    "title": "Receber e verificar o webhook — Ruby",
+    "title": "Receber e verificar o webhook — Ruby (SDK)",
     "file": "verify-webhook/ruby.rb"
   },
   {
@@ -164,31 +164,31 @@
   {
     "topic": "handle-errors",
     "language": "php",
-    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — PHP",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — PHP (SDK)",
     "file": "handle-errors/php.php"
   },
   {
     "topic": "handle-errors",
     "language": "java",
-    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Java",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Java (SDK)",
     "file": "handle-errors/java.java"
   },
   {
     "topic": "handle-errors",
     "language": "go",
-    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Go",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Go (SDK)",
     "file": "handle-errors/go.go"
   },
   {
     "topic": "handle-errors",
     "language": "csharp",
-    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — C#",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — C# (SDK)",
     "file": "handle-errors/csharp.cs"
   },
   {
     "topic": "handle-errors",
     "language": "ruby",
-    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Ruby",
+    "title": "Tratar cota esgotada (402) e subconta suspensa (403) — Ruby (SDK)",
     "file": "handle-errors/ruby.rb"
   },
   {

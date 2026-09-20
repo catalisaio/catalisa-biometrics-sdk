@@ -1,28 +1,25 @@
-// Reads the session envelope (Java 17+, JDK only). Run: SESSION_ID=… java java.java
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.util.regex.Pattern;
+import app.catalisa.biometrics.BiometricsClient;
+import app.catalisa.biometrics.BiometricsException;
 
 public class GetSession {
-    public static void main(String[] args) throws Exception {
-        String baseUrl = System.getenv().getOrDefault("CATALISA_BIOMETRICS_URL", "https://api.biometrics.catalisa.app/v1");
-        String id = URLEncoder.encode(System.getenv("SESSION_ID"), StandardCharsets.UTF_8);
+    public static void main(String[] args) {
+        var bio = BiometricsClient.builder()
+                .apiKey(System.getenv("CATALISA_API_KEY"))
+                .baseUrl(System.getenv().getOrDefault("CATALISA_BIOMETRICS_URL", BiometricsClient.DEFAULT_BASE_URL))
+                .build();
 
-        HttpRequest req = HttpRequest.newBuilder(URI.create(baseUrl + "/sessions/" + id))
-            .header("X-API-Key", System.getenv("CATALISA_API_KEY"))
-            .GET().build();
-        HttpResponse<String> res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
-
-        if (res.statusCode() == 404) { System.err.println("Session not found"); System.exit(1); }
-        if (res.statusCode() != 200) { System.err.println("Error " + res.statusCode() + ": " + res.body()); System.exit(1); }
-        // Parse with your JSON library; "status" and "decision.outcome" drive your flow.
-        var status = Pattern.compile("\"status\"\\s*:\\s*\"([A-Z_]+)\"").matcher(res.body());
-        System.out.println("status: " + (status.find() ? status.group(1) : "?"));
-        var outcome = Pattern.compile("\"outcome\"\\s*:\\s*\"([A-Z_]+)\"").matcher(res.body());
-        if (outcome.find()) System.out.println("decision: " + outcome.group(1));
+        try {
+            var session = bio.getSession(System.getenv("SESSION_ID"));
+            System.out.println("status: " + session.status());
+            if (session.decision() != null) {
+                var reasons = String.join(", ", session.decision().reasons());
+                System.out.println("decision: " + session.decision().outcome() + " " + (reasons.isEmpty() ? "(no reasons)" : reasons));
+                session.checks().forEach(check -> System.out.printf(" - %s: %s (score %s / threshold %s)%n",
+                        check.kind(), check.status(), check.score(), check.threshold()));
+            }
+        } catch (BiometricsException e) {
+            if (e.status() != 404) throw e;
+            System.out.println("Session not found (or owned by another organization)");
+        }
     }
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Only to assemble a classpath for the Java snippets: `java file.java` has no
+     dependency mechanism of its own, so the verifier resolves the SDK (and
+     Jackson, which it brings) with Maven and hands the result to java -cp. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>snippets</groupId>
+  <artifactId>java-classpath</artifactId>
+  <version>1</version>
+  <dependencies>
+    <dependency>
+      <groupId>io.github.catalisaio</groupId>
+      <artifactId>catalisa-biometrics</artifactId>
+      <version>0.1.0</version>
+    </dependency>
+  </dependencies>
+</project>
