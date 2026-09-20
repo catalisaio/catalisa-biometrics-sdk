@@ -1,0 +1,36 @@
+# Publishes catalisa-biometrics to RubyGems with trusted publishing: the workflow
+# proves who it is through GitHub's OIDC token, so there is no API key to store,
+# rotate or leak. The pending publisher on rubygems.org names this repository and
+# this file — renaming either one breaks the trust, on purpose.
+name: publish-rubygems
+
+on:
+  push:
+    tags: ["packages/ruby/v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # the OIDC token trusted publishing verifies
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ruby
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      # Nothing is published before the suite passes: a yanked gem still occupies
+      # its version number forever.
+      - name: Test
+        run: ruby -Ilib -Itest -e 'Dir.glob("test/*_test.rb").each { |f| require File.expand_path(f) }'
+
+      - uses: rubygems/release-gem@v1
+        with:
+          await-release: false
