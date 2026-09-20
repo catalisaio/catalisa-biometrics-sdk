@@ -11,3 +11,7 @@ packages/python/*.egg-info/
 packages/python/src/*.egg-info/
 .verify/
 *.tgz
+packages/php/vendor/
+packages/php/.phpunit.cache/
+packages/php/.phpunit.result.cache
+packages/php/composer.lock

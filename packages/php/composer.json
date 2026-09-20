@@ -1,0 +1,38 @@
+{
+  "name": "catalisa/biometrics",
+  "description": "Catalisa Biometrics PHP SDK — liveness and face-match sessions, signed evidence and webhook verification",
+  "type": "library",
+  "license": "MIT",
+  "keywords": ["biometrics", "liveness", "kyc", "face-match", "catalisa"],
+  "homepage": "https://docs.catalisa.app",
+  "support": {
+    "issues": "https://github.com/catalisaio/catalisa-biometrics-sdk/issues",
+    "source": "https://github.com/catalisaio/catalisa-biometrics-sdk/tree/main/packages/php"
+  },
+  "require": {
+    "php": ">=8.1",
+    "ext-json": "*",
+    "ext-curl": "*",
+    "ext-openssl": "*",
+    "ext-sodium": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Catalisa\\Biometrics\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Catalisa\\Biometrics\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
