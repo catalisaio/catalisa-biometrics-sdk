@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -107,18 +106,17 @@ public sealed class WebhookVerifier
             throw Fail(WebhookFailure.InvalidSignature, "invalid signature");
         }
 
-        using var rsa = RSA.Create();
+        var message = Encoding.UTF8.GetBytes($"{id}\n{timestamp}\n{rawBody}");
+        bool valid;
         try
         {
-            rsa.ImportFromPem(pem);
+            valid = Rsa.VerifySha256(pem, message, raw);
         }
         catch (Exception)
         {
             throw Fail(WebhookFailure.UnknownKeyId, "the public key for this keyId is not readable");
         }
-
-        var message = Encoding.UTF8.GetBytes($"{id}\n{timestamp}\n{rawBody}");
-        if (!rsa.VerifyData(message, raw, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))
+        if (!valid)
         {
             throw Fail(WebhookFailure.InvalidSignature, "invalid signature");
         }

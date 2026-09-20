@@ -2,8 +2,8 @@
 
 .NET SDK for **Catalisa Biometrics** — liveness and face-match sessions, signed evidence and webhook verification.
 
-- .NET 8 and .NET Standard 2.1
-- One dependency, BouncyCastle, only because .NET has no Ed25519 and the receipt is signed with it
+- .NET 8 and .NET Standard 2.0, which also covers .NET Framework 4.6.1+
+- One dependency, BouncyCastle: .NET has no Ed25519, and the older targets cannot read a PEM — so all the crypto goes through it
 - Typed exception carrying the API's own error code
 
 ```bash

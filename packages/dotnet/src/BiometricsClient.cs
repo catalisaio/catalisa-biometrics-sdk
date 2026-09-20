@@ -276,7 +276,8 @@ public sealed class BiometricsClient : IDisposable
             {
                 // A 429 is always safe to retry: the rate limiter refuses before the
                 // handler runs, so nothing was done.
-                var retryable = e.Status == (int)HttpStatusCode.TooManyRequests
+                // 429 by number: the older .NET has no HttpStatusCode.TooManyRequests.
+                var retryable = e.Status == 429
                     || (idempotent && (e.Status >= 500 || e.Status == 0));
                 if (!retryable || attempt >= _options.MaxRetries || cancellationToken.IsCancellationRequested)
                 {
@@ -345,7 +346,7 @@ public sealed class BiometricsClient : IDisposable
             return TimeSpan.FromSeconds(Math.Min(seconds, 30));
         }
         var baseMs = 500 * Math.Pow(2, attempt);
-        var jitter = Random.Shared.Next(0, (int)(baseMs / 4));
+        var jitter = Jitter.Next((int)(baseMs / 4));
 
         return TimeSpan.FromMilliseconds(Math.Min(baseMs + jitter, 8000));
     }
@@ -354,6 +355,22 @@ public sealed class BiometricsClient : IDisposable
     public void Dispose()
     {
         if (_ownsHttpClient) _http.Dispose();
+    }
+
+    /// <summary>
+    /// Random for the backoff. Not Random.Shared: that arrived in .NET 6 and this
+    /// package also targets the older .NET. One instance behind a lock is plenty
+    /// for picking milliseconds.
+    /// </summary>
+    private static class Jitter
+    {
+        private static readonly Random Source = new();
+
+        public static int Next(int max)
+        {
+            if (max <= 0) return 0;
+            lock (Source) return Source.Next(0, max);
+        }
     }
 
     private sealed class Envelope<T>
