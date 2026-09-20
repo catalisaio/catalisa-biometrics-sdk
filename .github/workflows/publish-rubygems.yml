@@ -36,7 +36,7 @@ jobs:
       # triggered this run, so it would fight itself. Exchanging the OIDC token
       # for a short-lived credential and pushing the gem does the same job
       # without a key and without touching git.
-      - uses: rubygems/configure-rubygems-credentials@v1
+      - uses: rubygems/configure-rubygems-credentials@v2
 
       - name: Build and push
         run: |
