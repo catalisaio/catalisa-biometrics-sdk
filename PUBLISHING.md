@@ -7,6 +7,8 @@ Step-by-step for the owner to publish the three packages at **0.1.0**. Nothing h
 | `@catalisa/biometrics` | npm | `packages/node` |
 | `@catalisa/biometrics-web` | npm (+ jsDelivr/unpkg automatically) | `packages/web` |
 | `catalisa-biometrics` | PyPI | `packages/python` |
+| `github.com/catalisaio/catalisa-biometrics-sdk/packages/go` | Go modules (a git tag is the release) | `packages/go` |
+| `catalisa/biometrics` | Packagist | `packages/php` (mirrored to `catalisaio/catalisa-biometrics-php`) |
 
 ## 0. Pre-publication checklist
 
@@ -82,3 +84,29 @@ twine upload dist/*
 ## Next versions
 
 Bump the version in `packages/node/package.json`, `packages/node/src/http.ts` (`SDK_VERSION`), `packages/web/package.json`, `packages/web/src/index.ts` (`VERSION`), `packages/python/pyproject.toml` and `packages/python/src/catalisa_biometrics/client.py` (`VERSION`), then repeat steps 1–5.
+
+## 5. Go and PHP releases
+
+**Go** needs no registry and no token: the tag *is* the release.
+
+```bash
+git tag packages/go/vX.Y.Z && git push origin packages/go/vX.Y.Z
+# proxy.golang.org picks it up on the first `go get`
+```
+
+**PHP** is published through Packagist, which indexes a repository whose
+`composer.json` is at the root — so `packages/php` is mirrored into its own
+read-only repository:
+
+```bash
+scripts/split-php.sh vX.Y.Z      # updates catalisaio/catalisa-biometrics-php and tags it
+```
+
+First time only, the owner submits `https://github.com/catalisaio/catalisa-biometrics-php`
+at https://packagist.org/packages/submit and enables the GitHub hook Packagist
+offers right after, so later tags are picked up on their own.
+
+Published on 2026-09-19/20: `catalisa-biometrics` 0.1.0 (PyPI) and
+`packages/go/v0.1.0` (Go modules), both verified with a clean install against
+production. PHP is mirrored and tagged `v0.1.0`, waiting on the Packagist
+submission; npm is waiting on the account.
