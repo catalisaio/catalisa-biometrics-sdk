@@ -15,7 +15,7 @@ Step-by-step for the owner to publish the three packages at **0.1.0**. Nothing h
 - [ ] **License.** Packages declare MIT (same as `@catalisa/panel-sdk`). Confirm, or change `license` in the three manifests and the `LICENSE` files.
 - [ ] **npm scope.** You are logged in to npm (`npm whoami`) with publish rights on the `@catalisa` scope, with 2FA.
 - [ ] **PyPI.** A PyPI account with an API token for `catalisa-biometrics` (name still free on 2026-09-19: `pip index versions catalisa-biometrics` finds nothing).
-- [ ] **Repository URL.** When the GitHub repository exists, add `"repository"` to both `package.json` files and `[project.urls] Source` to `pyproject.toml`.
+- [x] **Repository URL.** `https://github.com/catalisaio/catalisa-biometrics-sdk` (private), wired into both `package.json` files and `pyproject.toml`.
 - [x] **Subaccounts.** Merged and in production (building-blocks-v2#404); the SDKs handle `QUOTA_EXCEEDED`/`SUBACCOUNT_SUSPENDED` and `X-Subaccount-Id`.
 - [x] **Test environment.** The sandbox is in production (building-blocks-v2#408/#409): a `test` key runs the simulated engine, spends no allowance and is never billed. Documented in the node and python READMEs; `environment` is typed in the node envelope.
 - [ ] Everything green (step 1).

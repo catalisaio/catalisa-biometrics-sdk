@@ -24,6 +24,8 @@ test = ["pytest>=7"]
 
 [project.urls]
 Homepage = "https://docs.catalisa.app"
+Source = "https://github.com/catalisaio/catalisa-biometrics-sdk"
+Issues = "https://github.com/catalisaio/catalisa-biometrics-sdk/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

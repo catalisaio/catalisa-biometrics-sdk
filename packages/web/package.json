@@ -1,6 +1,14 @@
 {
   "name": "@catalisa/biometrics-web",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/catalisaio/catalisa-biometrics-sdk.git",
+    "directory": "packages/web"
+  },
+  "bugs": {
+    "url": "https://github.com/catalisaio/catalisa-biometrics-sdk/issues"
+  },
   "description": "Catalisa Biometrics capture in the browser — link, iframe or modal, with the page progress events over postMessage",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

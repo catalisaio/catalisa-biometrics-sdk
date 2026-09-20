@@ -1,6 +1,14 @@
 {
   "name": "@catalisa/biometrics",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/catalisaio/catalisa-biometrics-sdk.git",
+    "directory": "packages/node"
+  },
+  "bugs": {
+    "url": "https://github.com/catalisaio/catalisa-biometrics-sdk/issues"
+  },
   "description": "Catalisa Biometrics Node.js SDK — liveness and face-match sessions, signed evidence and webhook verification",
   "type": "module",
   "main": "./dist/index.cjs",
