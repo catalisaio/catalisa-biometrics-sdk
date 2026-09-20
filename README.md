@@ -8,7 +8,7 @@ SDKs and integration snippets for **Catalisa Biometrics** — liveness and face-
 | [`@catalisa/biometrics-web`](packages/web) | Browser | Opens the capture page as modal, iframe or redirect; typed `postMessage` events. ESM + CJS + UMD (`CatalisaBiometrics`) |
 | [`catalisa-biometrics`](packages/python) | Python 3.9+ | Sessions and webhook/evidence verification, standard library only |
 
-API base URL: `https://api.biometrics.catalisa.app/v1` (edge route to `https://biometrics.bb.catalisa.app/biometrics/api/v1`). Staging: `https://biometrics.bb.stg.catalisa.app/biometrics/api/v1`. Authentication: `X-API-Key` (or an IAM JWT as `Authorization: Bearer`).
+API base URL: `https://api.biometrics.catalisa.app/v1`. Authentication: `X-API-Key` (or an IAM JWT as `Authorization: Bearer`). A `test` key runs the sandbox: simulated engine, no allowance spent, nothing billed.
 
 ## The integration in one picture
 
