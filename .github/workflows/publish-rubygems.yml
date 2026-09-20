@@ -31,6 +31,14 @@ jobs:
       - name: Test
         run: ruby -Ilib -Itest -e 'Dir.glob("test/*_test.rb").each { |f| require File.expand_path(f) }'
 
-      - uses: rubygems/release-gem@v1
-        with:
-          await-release: false
+      # The official release-gem action runs `rake release`, which wants a
+      # Rakefile and also creates and pushes the git tag — the tag is what
+      # triggered this run, so it would fight itself. Exchanging the OIDC token
+      # for a short-lived credential and pushing the gem does the same job
+      # without a key and without touching git.
+      - uses: rubygems/configure-rubygems-credentials@v1
+
+      - name: Build and push
+        run: |
+          gem build catalisa-biometrics.gemspec
+          gem push catalisa-biometrics-*.gem
