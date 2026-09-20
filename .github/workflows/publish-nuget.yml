@@ -1,0 +1,53 @@
+# Publishes Catalisa.Biometrics to NuGet with trusted publishing: the workflow
+# proves who it is to NuGet through GitHub's OIDC token, so there is no API key
+# to store, rotate or leak. The policy on nuget.org names this repository and
+# this file — renaming either one breaks the trust, on purpose.
+name: publish-nuget
+
+on:
+  push:
+    tags: ["packages/dotnet/v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish (e.g. 0.1.0). Defaults to the csproj value.
+        required: false
+
+permissions:
+  contents: read
+  id-token: write # the OIDC token trusted publishing verifies
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # Nothing is published before the suite passes: a broken package on NuGet
+      # cannot be deleted, only unlisted.
+      - name: Test
+        run: dotnet test packages/dotnet/tests/Catalisa.Biometrics.Tests.csproj --configuration Release
+
+      - name: Pack
+        run: |
+          VERSION_ARG=""
+          if [ -n "${{ inputs.version }}" ]; then VERSION_ARG="-p:Version=${{ inputs.version }}"; fi
+          dotnet pack packages/dotnet/src/Catalisa.Biometrics.csproj \
+            --configuration Release --output artifacts $VERSION_ARG
+
+      - name: Log in to NuGet (trusted publishing)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: klederson
+
+      - name: Push
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
+            --skip-duplicate

@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;netstandard2.1</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591 (missing XML comment): the model classes mirror the wire contract
+         field by field, and repeating each field's name as prose would add noise,
+         not meaning. What is worth explaining — the flow, the sandbox, the
+         retries, what the capture answer deliberately leaves out — is documented
+         where it lives; the full field reference is the OpenAPI spec. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Catalisa.Biometrics</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Catalisa</Authors>
+    <Company>Catalisa</Company>
+    <Description>Catalisa Biometrics SDK — liveness and face-match sessions, signed evidence and webhook verification.</Description>
+    <PackageTags>biometrics;liveness;kyc;face-match;catalisa</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://docs.catalisa.app</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/catalisaio/catalisa-biometrics-sdk</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The tests replace the wait between attempts; that knob is not part of the
+         public API, so it stays internal and visible only to them. -->
+    <InternalsVisibleTo Include="Catalisa.Biometrics.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- .NET has no Ed25519, and the evidence receipt is signed with it. Managed
+         implementation: nothing native to ship. -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+</Project>

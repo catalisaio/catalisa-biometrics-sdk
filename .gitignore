@@ -15,3 +15,6 @@ packages/php/vendor/
 packages/php/.phpunit.cache/
 packages/php/.phpunit.result.cache
 packages/php/composer.lock
+packages/dotnet/**/bin/
+packages/dotnet/**/obj/
+artifacts/

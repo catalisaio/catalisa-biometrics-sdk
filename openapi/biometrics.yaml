@@ -1,0 +1,1079 @@
+openapi: 3.1.0
+info:
+  title: Catalisa Biometrics
+  version: "1.0.0"
+  summary: Liveness and face-match sessions, signed evidence and subject rights.
+  description: |
+    Facial verification with an answer you can explain: every session carries the
+    score, the threshold and the model that decided it, plus a signed receipt a
+    third party can verify without us.
+
+    **The flow never trusts the browser.**
+
+    1. Your server creates a session and receives `handoff.captureUrl`.
+    2. The person opens that URL (browser tab, iframe or WebView) and does the challenge.
+    3. The decision reaches your server through the `biometrics.session.completed`
+       webhook, or through `GET /sessions/{sessionId}`.
+
+    The capture page never reveals the result to the person in front of the
+    camera — on purpose, so it cannot be used as a fraud oracle. Never decide
+    anything from front-end events.
+
+    **Test environment.** An API key belongs to one world and says so on every
+    session it opens. A `test` key runs the simulated engine, needs no engine
+    configured, spends no allowance and is never billed; its sessions are
+    invisible to `live` keys, and the other way round. In the sandbox the CPF
+    ending decides the outcome: `…-25` (or any other) approves, `…-11` comes back
+    inconclusive for review, `…-55` asks for a second attempt and then approves,
+    `…-66` fails as an engine error, and `…-00`, `…-33` and `…-44` reject by face
+    match, liveness and continuity.
+  contact:
+    name: Catalisa
+    url: https://biometrics.catalisa.app
+    email: contato@catalisa.app
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.biometrics.catalisa.app/v1
+    description: Production
+tags:
+  - name: Sessions
+    description: Open a verification, read the decision, cancel, evidence.
+  - name: Capture
+    description: Upload a capture recorded by your own app.
+  - name: Enrollments
+    description: Face templates used by AUTHENTICATION.
+  - name: Evidence
+    description: Signing keys for the offline receipt.
+  - name: Providers
+    description: Which engine answers, with what branding.
+  - name: Policy
+    description: Thresholds and rules that decide each verification.
+  - name: Usage
+    description: What was consumed, for the dashboard and the invoice.
+  - name: Subject rights
+    description: LGPD report and erasure, by CPF.
+
+security:
+  - ApiKey: []
+  - BearerAuth: []
+
+paths:
+  /sessions:
+    post:
+      tags: [Sessions]
+      operationId: createSession
+      summary: Open a session
+      description: |
+        Returns the envelope with `handoff`, where the person goes. The session is
+        born in the environment of the key that opened it.
+
+        Do not retry this call on a 5xx or a network failure: the server does not
+        deduplicate by `Idempotency-Key` yet, and a retry could open two sessions
+        (and spend the allowance twice). A 429 is safe — the rate limiter refuses
+        before anything runs.
+      parameters:
+        - $ref: "#/components/parameters/SubaccountHeader"
+        - name: Idempotency-Key
+          in: header
+          description: Forwarded for forward compatibility; not honored yet.
+          schema: { type: string, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSession" }
+            examples:
+              liveness:
+                summary: Liveness only
+                value:
+                  flow: LIVENESS_ONLY
+                  purpose: abertura de conta
+                  metadata: { orderId: "123" }
+              onboarding:
+                summary: Face against the document, storing the template
+                value:
+                  flow: ONBOARDING
+                  purpose: abertura de conta
+                  subjectRef: { type: CPF, value: "529.982.247-25" }
+                  reference: { source: DOCUMENT_IMAGE, fileId: "5b0e7a3c-1111-4222-8333-444455556666" }
+                  enrollOnApprove: true
+      responses:
+        "201":
+          description: Session created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Session" }
+                required: [data]
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/QuotaExceeded" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    get:
+      tags: [Sessions]
+      operationId: listSessions
+      summary: List sessions
+      description: Newest first. A subaccount key only ever sees its own.
+      parameters:
+        - $ref: "#/components/parameters/SubaccountHeader"
+        - { name: "page[number]", in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: "page[size]", in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/SessionStatus" } }
+        - { name: flow, in: query, schema: { $ref: "#/components/schemas/Flow" } }
+        - { name: customerId, in: query, schema: { type: string, format: uuid } }
+        - name: subjectCpf
+          in: query
+          description: The server turns it into the HMAC. Prefer `customerId` — this one travels in the query string.
+          schema: { type: string }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - name: subaccountId
+          in: query
+          description: Organization key only; a subaccount key is already bound to its own scope.
+          schema: { type: string, format: uuid }
+        - name: environment
+          in: query
+          description: |
+            Which world to list. A subaccount key is sealed into its own and this is
+            ignored; the tenant (JWT or organization key) sees both by default.
+          schema: { $ref: "#/components/schemas/Environment" }
+      responses:
+        "200":
+          description: A page of sessions. The envelopes in a listing carry no `handoff`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Session" }
+                  meta:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      page:
+                        type: object
+                        properties:
+                          number: { type: integer }
+                          size: { type: integer }
+                required: [data, meta]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /sessions/{sessionId}:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/SubaccountHeader"
+    get:
+      tags: [Sessions]
+      operationId: getSession
+      summary: Read a session
+      description: |
+        The full envelope: decision, checks, evidence and cost.
+
+        A session belonging to another subaccount — or to the other environment —
+        answers `404`, never `403`: existence is not confirmed.
+      responses:
+        "200":
+          description: The session.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Session" }
+                required: [data]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /sessions/{sessionId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/SubaccountHeader"
+    post:
+      tags: [Sessions]
+      operationId: cancelSession
+      summary: Cancel a session
+      description: |
+        Only while it has not settled (`SESSION_OPEN`, `RETRY_ALLOWED`, `ERROR` or
+        `PROCESSING`). The allowance slot comes back: a cancelled session does not
+        count against the monthly quota.
+      responses:
+        "200":
+          description: Cancelled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Session" }
+                required: [data]
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /sessions/{sessionId}/evidence:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/SubaccountHeader"
+    get:
+      tags: [Sessions]
+      operationId: getSessionEvidence
+      summary: Evidence with download links
+      description: The signed bundle plus short-lived URLs for each artifact.
+      responses:
+        "200":
+          description: The evidence.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/Evidence"
+                      - type: object
+                        properties:
+                          urls:
+                            type: object
+                            additionalProperties:
+                              oneOf:
+                                - type: "null"
+                                - type: object
+                                  properties:
+                                    url: { type: string, format: uri }
+                                    expiresAt: { type: string, format: date-time }
+                required: [data]
+        "404":
+          description: No session, or the session has no evidence yet.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /sessions/{sessionId}/evidence/verify:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/SubaccountHeader"
+    get:
+      tags: [Sessions]
+      operationId: verifyEvidence
+      summary: Verify the evidence signature (on the server)
+      description: |
+        Convenient, but it trusts the same party that signed it. For an audit,
+        verify offline: fetch `GET /evidence-keys` and check the Ed25519 signature
+        over `{sessionId}|{attempt}|{bundleHash}|{signedAt}` yourself.
+      responses:
+        "200":
+          description: The verdict.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      valid: { type: boolean }
+                      keyId: { type: string }
+                      retiredAt:
+                        oneOf:
+                          - type: "null"
+                          - { type: string, format: date-time }
+                    required: [valid, keyId]
+                required: [data]
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /sessions/{sessionId}/captures:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Capture]
+      operationId: submitCapture
+      summary: Upload a capture recorded by your own app
+      description: |
+        Authenticated by the session's **capture token**, not by the API key — so an
+        app can upload without ever holding the account's key. The token comes in
+        `handoff.captureToken`, is single use and bound to one attempt.
+
+        Prefer the hosted page when you can: it already runs the quality checks
+        that keep a useless recording from spending an attempt.
+
+        The answer is deliberately poorer than the envelope: score, checks and the
+        full decision never come back here.
+      security:
+        - CaptureToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                video:
+                  type: string
+                  format: binary
+                  description: "`video/webm` or `video/mp4`, at most 16 MiB and 24 seconds."
+                telemetry:
+                  type: string
+                  description: JSON with what your capture measured. Feeds the integrity checks; malformed telemetry is ignored, not refused.
+                channel:
+                  $ref: "#/components/schemas/CaptureChannel"
+                capturedAt:
+                  type: string
+                  format: date-time
+                  description: When the recording ended. Clamped to ±5 minutes of the server clock.
+              required: [video]
+      responses:
+        "200":
+          description: Capture evaluated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      sessionId: { type: string, format: uuid }
+                      status: { $ref: "#/components/schemas/SessionStatus" }
+                      attempt: { type: integer }
+                      maxAttempts: { type: integer }
+                      reasons:
+                        type: array
+                        description: Only on `RETRY_ALLOWED`, and only quality/gesture reasons — enough to tell the person what to do differently.
+                        items: { $ref: "#/components/schemas/Reason" }
+                      handoff:
+                        $ref: "#/components/schemas/Handoff"
+                    required: [sessionId, status, attempt, maxAttempts]
+                required: [data]
+        "401":
+          description: Capture token missing, expired or already used.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: The policy does not allow this capture channel.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: The session does not accept a capture right now (settled, expired or already being evaluated).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413":
+          description: Video over 16 MiB.
+        "415":
+          description: Video type not accepted.
+
+  /enrollments:
+    post:
+      tags: [Enrollments]
+      operationId: createEnrollment
+      summary: Create a face template from an approved session
+      parameters:
+        - $ref: "#/components/parameters/SubaccountHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId: { type: string, format: uuid }
+                customerId: { type: string, format: uuid }
+              required: [sessionId]
+      responses:
+        "201":
+          description: Template created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Template" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /enrollments/{templateId}:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/SubaccountHeader"
+    get:
+      tags: [Enrollments]
+      operationId: getEnrollment
+      summary: Read a template
+      responses:
+        "200":
+          description: The template.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Template" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Enrollments]
+      operationId: revokeEnrollment
+      summary: Revoke a template
+      description: The encrypted template is erased; the session that produced it stays.
+      responses:
+        "204": { description: Revoked. }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /evidence-keys:
+    get:
+      tags: [Evidence]
+      operationId: listEvidenceKeys
+      summary: Published signing keys
+      description: |
+        Retired keys stay published, so evidence signed years ago still verifies.
+        `meta.message` spells out exactly what was signed.
+      responses:
+        "200":
+          description: The keys.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        keyId: { type: string }
+                        publicKeyPem: { type: string }
+                        createdAt: { type: string, format: date-time }
+                        retiredAt:
+                          oneOf:
+                            - type: "null"
+                            - { type: string, format: date-time }
+                      required: [keyId, publicKeyPem]
+                  meta:
+                    type: object
+                    properties:
+                      alg: { type: string, examples: [Ed25519] }
+                      message: { type: string, examples: ["${sessionId}|${attempt}|${bundleHash}|${signedAt}"] }
+
+  /usage:
+    get:
+      tags: [Usage]
+      operationId: getUsage
+      summary: What was consumed
+      description: |
+        With `groupBy`, a series per bucket (America/Sao_Paulo, by the session's
+        `createdAt`) plus totals — the dashboard and the billing base. Without it,
+        a summary per provider, flow and outcome.
+
+        `billable` counts the sessions that reached a decision (approved, rejected
+        or inconclusive). The monthly quota counts something slightly different:
+        every session created in the month except the ones that ended `EXPIRED` or
+        `CANCELLED` — an open session already holds its slot.
+      parameters:
+        - $ref: "#/components/parameters/SubaccountHeader"
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: groupBy, in: query, schema: { type: string, enum: [day, month] } }
+        - { name: subaccountId, in: query, schema: { type: string, format: uuid } }
+        - name: environment
+          in: query
+          description: Production by default for the tenant; `test` for the sandbox, `all` for both. A subaccount key always reports its own world.
+          schema: { type: string, enum: [live, test, all] }
+      responses:
+        "200":
+          description: Usage.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/UsageSeries"
+                  - $ref: "#/components/schemas/UsageSummary"
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  /catalog:
+    get:
+      tags: [Providers]
+      operationId: getCatalog
+      summary: What each engine can do
+      description: Capabilities, capture mode, assurance level and data residency, with no credentials involved.
+      responses:
+        "200":
+          description: The catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        providerType: { $ref: "#/components/schemas/ProviderType" }
+                        capabilities:
+                          type: array
+                          items: { type: string }
+                        captureMode: { $ref: "#/components/schemas/CaptureMode" }
+                        assurance: { $ref: "#/components/schemas/Assurance" }
+                        certifications: { type: array, items: { type: string } }
+                        implemented: { type: boolean }
+                        injectionDetection: { type: string, enum: [certified, heuristic, none] }
+                        dataResidency: { type: string, enum: [self-hosted, provider] }
+
+  /subjects/report:
+    post:
+      tags: [Subject rights]
+      operationId: subjectReport
+      summary: What we hold about a person (LGPD)
+      description: The CPF goes in the body, never in the URL.
+      parameters:
+        - $ref: "#/components/parameters/SubaccountHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cpf: { type: string, minLength: 11, maxLength: 14 }
+              required: [cpf]
+      responses:
+        "200":
+          description: Sessions, templates and artifacts held for this person.
+          content:
+            application/json:
+              schema: { type: object }
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  /subjects/erase:
+    post:
+      tags: [Subject rights]
+      operationId: subjectErase
+      summary: Erase a person's biometric data (LGPD)
+      description: |
+        Revokes the templates and deletes the media we stored. The sessions stay,
+        without pixels: what the decision was, and why, is a record we are required
+        to keep — the face is not.
+      parameters:
+        - $ref: "#/components/parameters/SubaccountHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cpf: { type: string, minLength: 11, maxLength: 14 }
+              required: [cpf]
+      responses:
+        "200":
+          description: What was erased.
+          content:
+            application/json:
+              schema: { type: object }
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: The key issued in the console. A `test` key runs the sandbox.
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: An IAM access token, the way the console itself calls the API.
+    CaptureToken:
+      type: http
+      scheme: bearer
+      description: The session's `handoff.captureToken`. Single use, bound to one attempt, and enough on its own to upload a capture.
+
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    SubaccountHeader:
+      name: X-Subaccount-Id
+      in: header
+      description: |
+        Act on behalf of a subaccount while holding an organization key. A
+        subaccount key is already bound to its own scope and ignores this.
+      schema: { type: string, format: uuid }
+
+  responses:
+    ValidationError:
+      description: The payload was refused.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: VALIDATION, message: "flow inválido" }
+    BadRequest:
+      description: The request does not fit the session's state or the policy.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Key missing, wrong or revoked.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: |
+        The key is valid but may not do this. `details.code` is
+        `SUBACCOUNT_SUSPENDED` when the subaccount is suspended.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            error: FORBIDDEN
+            message: "subconta suspensa"
+            details: { code: SUBACCOUNT_SUSPENDED, subaccountId: "…", reason: "inadimplência" }
+    NotFound:
+      description: |
+        Nothing with that id in this scope. A session from another subaccount, or
+        from the other environment, answers this too — existence is not confirmed.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    QuotaExceeded:
+      description: The subaccount's monthly allowance is gone. A `test` key never gets here.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            error: PAYMENT_REQUIRED
+            message: "cota mensal atingida"
+            details:
+              code: QUOTA_EXCEEDED
+              subaccountId: "…"
+              monthlyQuota: 100
+              used: 100
+              periodStart: "2026-09-01T03:00:00.000Z"
+              periodEnd: "2026-10-01T03:00:00.000Z"
+    RateLimited:
+      description: Too many requests. Honor `Retry-After`; nothing ran, so retrying is safe.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      description: |
+        `error` is the code to branch on; `message` is for a human reading a log.
+        Some refusals put a more specific code in `details.code` — that is where
+        `QUOTA_EXCEEDED` and `SUBACCOUNT_SUSPENDED` live, together with the numbers
+        that explain them.
+      properties:
+        error: { type: string, examples: [VALIDATION, NOT_FOUND, PAYMENT_REQUIRED] }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+      required: [error]
+
+    Environment:
+      type: string
+      enum: [live, test]
+      description: "`test` is the sandbox: simulated engine, no allowance spent, never billed."
+
+    Flow:
+      type: string
+      enum: [ONBOARDING, AUTHENTICATION, ENROLLMENT, LIVENESS_ONLY, DEDUP]
+      description: |
+        `LIVENESS_ONLY` proves a live person; `ONBOARDING` compares that person
+        against a document; `AUTHENTICATION` against a stored template;
+        `ENROLLMENT` stores one.
+
+    SessionStatus:
+      type: string
+      enum: [SESSION_OPEN, PROCESSING, APPROVED, REJECTED, INCONCLUSIVE, RETRY_ALLOWED, EXPIRED, CANCELLED, ERROR]
+      description: "`APPROVED`, `REJECTED`, `INCONCLUSIVE`, `EXPIRED` and `CANCELLED` are final."
+
+    ProviderType:
+      type: string
+      examples: [OPENSOURCE, MOCK, SERPRO_DATAVALID, FACETEC, UNICO]
+
+    Assurance:
+      type: string
+      enum: [BASIC, ENHANCED, CERTIFIED]
+
+    CaptureMode:
+      type: string
+      examples: [RAW_FRAMES, PROVIDER_SDK, PROVIDER_HOSTED]
+
+    CaptureChannel:
+      type: string
+      enum: [HOSTED, IFRAME, WIDGET, SDK]
+
+    Gesture:
+      type: string
+      examples: [TURN_LEFT, TURN_RIGHT, BLINK, SMILE, OPEN_MOUTH, NOD, APPROACH, TILT_LEFT, TILT_RIGHT, EYEBROWS_RAISE]
+
+    Reason:
+      type: string
+      description: Additive vocabulary; a value you do not know yet is not an error.
+      examples:
+        - quality.too_dark
+        - liveness.passive.failed
+        - capture.virtual_camera_suspected
+        - match.below_threshold
+        - policy.max_attempts_reached
+
+    CreateSession:
+      type: object
+      properties:
+        flow: { $ref: "#/components/schemas/Flow" }
+        purpose:
+          type: string
+          minLength: 3
+          maxLength: 120
+          description: What you would tell an auditor who asked why this face was processed.
+        legalBasis: { type: string, maxLength: 200 }
+        subjectRef:
+          type: object
+          description: Only the HMAC and a mask are stored; the CPF itself never is.
+          properties:
+            type: { type: string, enum: [CPF] }
+            value: { type: string, minLength: 11, maxLength: 14 }
+          required: [type, value]
+        customerId: { type: string, format: uuid }
+        reference:
+          description: What the face is compared against. Required by ONBOARDING and AUTHENTICATION.
+          oneOf:
+            - type: object
+              properties:
+                source: { type: string, enum: [DOCUMENT_IMAGE, FILE] }
+                fileId: { type: string, format: uuid }
+              required: [source, fileId]
+            - type: object
+              properties:
+                source: { type: string, enum: [ENROLLED_TEMPLATE] }
+                templateId: { type: string, format: uuid }
+              required: [source, templateId]
+            - type: object
+              properties:
+                source: { type: string, enum: [PROVIDER_BASE] }
+              required: [source]
+        providerConfigId: { type: string, format: uuid }
+        appearance:
+          type: object
+          description: Colors, logo, texts and layout of the capture page.
+          additionalProperties: true
+        challengeScript:
+          type: array
+          minItems: 2
+          maxItems: 5
+          items: { $ref: "#/components/schemas/Gesture" }
+          description: Testing and calibration only; in production the server draws the gestures.
+        metadata:
+          type: object
+          maxProperties: 10
+          additionalProperties: { type: string, maxLength: 100 }
+          description: Up to 10 free-form labels. Never put a CPF here.
+        enrollOnApprove:
+          type: boolean
+          default: false
+          description: Stores the face template on approval. ONBOARDING and ENROLLMENT only.
+      required: [flow, purpose]
+
+    Handoff:
+      type: object
+      description: How the person gets to the capture. Comes with a new session and with every new attempt.
+      properties:
+        captureUrl:
+          type: string
+          format: uri
+          description: Open in a browser tab, an iframe or a WebView.
+        captureToken:
+          type: string
+          description: Single use, per attempt. Only for custom capture.
+        captureMode: { $ref: "#/components/schemas/CaptureMode" }
+        challenge:
+          type: object
+          properties:
+            script: { type: array, items: { $ref: "#/components/schemas/Gesture" } }
+            timeoutMs: { type: integer }
+            perGestureMs: { type: integer }
+            slotsMs: { type: array, items: { type: integer } }
+        expiresAt: { type: string, format: date-time }
+      required: [captureUrl, captureToken, captureMode, expiresAt]
+
+    Check:
+      type: object
+      description: One verification with its number, the threshold it had to clear and the engine that ran it.
+      properties:
+        kind: { type: string, examples: ["liveness.passive", "match.1_1", "capture.integrity"] }
+        status: { type: string, enum: [PASSED, FAILED, INCONCLUSIVE, SKIPPED] }
+        score: { type: number }
+        threshold: { type: number }
+        reasons: { type: array, items: { $ref: "#/components/schemas/Reason" } }
+        engine:
+          type: object
+          properties:
+            name: { type: string }
+            model: { type: string }
+            version: { type: string }
+        details: { type: object, additionalProperties: true }
+
+    Decision:
+      type: object
+      properties:
+        outcome: { $ref: "#/components/schemas/SessionStatus" }
+        reasons: { type: array, items: { $ref: "#/components/schemas/Reason" } }
+        policyId: { type: string }
+        reviewRequired: { type: boolean }
+        policyOverride:
+          oneOf: [{ type: "null" }, { type: string }]
+
+    Evidence:
+      type: object
+      description: The receipt. `signature` is what a third party verifies offline.
+      properties:
+        bundleHash: { type: string }
+        artifacts:
+          type: array
+          items:
+            type: object
+            properties:
+              kind: { type: string, examples: [best_frame, challenge_video, reference, reference_portrait] }
+              fileId:
+                oneOf: [{ type: "null" }, { type: string, format: uuid }]
+              hash: { type: string }
+              contentType: { type: string }
+        client:
+          type: object
+          properties:
+            ipHash: { oneOf: [{ type: "null" }, { type: string }] }
+            userAgent: { oneOf: [{ type: "null" }, { type: string }] }
+            captureTelemetryHash: { oneOf: [{ type: "null" }, { type: string }] }
+        policySnapshotHash: { type: string }
+        retainedUntil:
+          oneOf: [{ type: "null" }, { type: string, format: date-time }]
+        signature:
+          type: object
+          properties:
+            alg: { type: string, enum: [Ed25519] }
+            keyId: { type: string }
+            signedAt: { type: string, format: date-time }
+            value:
+              type: string
+              description: "Base64 over `{sessionId}|{attempt}|{bundleHash}|{signedAt}`."
+
+
+    Session:
+      type: object
+      description: The envelope every session call answers with.
+      properties:
+        sessionId: { type: string, format: uuid }
+        subaccountId:
+          oneOf: [{ type: "null" }, { type: string, format: uuid }]
+          description: The tenant's customer that owns the session; `null` = the organization's own.
+        environment: { $ref: "#/components/schemas/Environment" }
+        modality: { type: string, enum: [face] }
+        flow: { $ref: "#/components/schemas/Flow" }
+        provider: { $ref: "#/components/schemas/ProviderType" }
+        assurance: { $ref: "#/components/schemas/Assurance" }
+        evaluation:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                profileId: { type: string }
+                label: { type: string }
+                standard: { type: string }
+                conforms: { type: boolean }
+                certified: { type: boolean }
+                violations: { type: array, items: { type: string } }
+        status: { $ref: "#/components/schemas/SessionStatus" }
+        attempt: { type: integer }
+        maxAttempts: { type: integer }
+        subjectRef:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                type: { type: string, enum: [CPF] }
+                hmac: { type: string }
+                masked: { type: string }
+        customerId: { oneOf: [{ type: "null" }, { type: string, format: uuid }] }
+        purpose: { type: string }
+        reference: { oneOf: [{ type: "null" }, { type: object, additionalProperties: true }] }
+        capture:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                channel: { oneOf: [{ type: "null" }, { $ref: "#/components/schemas/CaptureChannel" }] }
+                embedHost: { oneOf: [{ type: "null" }, { type: string }] }
+        metadata:
+          oneOf: [{ type: "null" }, { type: object, additionalProperties: { type: string } }]
+        enrollment:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                templateId: { type: string, format: uuid }
+        decision: { oneOf: [{ type: "null" }, { $ref: "#/components/schemas/Decision" }] }
+        checks: { type: array, items: { $ref: "#/components/schemas/Check" } }
+        handoff: { $ref: "#/components/schemas/Handoff" }
+        evidence: { oneOf: [{ type: "null" }, { $ref: "#/components/schemas/Evidence" }] }
+        cost:
+          type: object
+          properties:
+            amount: { type: string }
+            currency: { type: string }
+            estimated: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        capturedAt: { oneOf: [{ type: "null" }, { type: string, format: date-time }] }
+        evaluatedAt: { oneOf: [{ type: "null" }, { type: string, format: date-time }] }
+        expiresAt: { type: string, format: date-time }
+        elapsedMs: { oneOf: [{ type: "null" }, { type: integer }] }
+      required: [sessionId, modality, flow, provider, assurance, status, attempt, maxAttempts, purpose, checks, createdAt, expiresAt]
+
+    Template:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [biometrics-template] }
+        attributes:
+          type: object
+          properties:
+            subaccountId: { oneOf: [{ type: "null" }, { type: string, format: uuid }] }
+            customerId: { oneOf: [{ type: "null" }, { type: string, format: uuid }] }
+            subjectRef:
+              oneOf:
+                - type: "null"
+                - type: object
+                  properties:
+                    type: { type: string, enum: [CPF] }
+                    hmac: { type: string }
+                    masked: { type: string }
+            provider: { $ref: "#/components/schemas/ProviderType" }
+            modelVersion: { type: string }
+            sourceSessionId: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            expiresAt: { oneOf: [{ type: "null" }, { type: string, format: date-time }] }
+            revokedAt: { oneOf: [{ type: "null" }, { type: string, format: date-time }] }
+
+    UsageBucket:
+      type: object
+      properties:
+        period: { type: string, examples: ["2026-09-19", "2026-09"] }
+        total: { type: integer }
+        approved: { type: integer }
+        rejected: { type: integer }
+        inconclusive: { type: integer }
+        expired: { type: integer }
+        cancelled: { type: integer }
+        inProgress: { type: integer }
+        billable: { type: integer }
+
+    UsageSeries:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            series: { type: array, items: { $ref: "#/components/schemas/UsageBucket" } }
+            totals: { $ref: "#/components/schemas/UsageBucket" }
+        meta:
+          type: object
+          additionalProperties: true
+
+    UsageSummary:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              provider: { $ref: "#/components/schemas/ProviderType" }
+              flow: { $ref: "#/components/schemas/Flow" }
+              outcome: { $ref: "#/components/schemas/SessionStatus" }
+              count: { type: integer }
+              costAmount: { type: string }
+        meta:
+          type: object
+          additionalProperties: true
+
+  examples: {}
+
+webhooks:
+  sessionCompleted:
+    post:
+      tags: [Sessions]
+      operationId: onSessionCompleted
+      summary: The decision, delivered to your server
+      description: |
+        Signed by the Webhooks Engine with the subscription's **private** key; you
+        verify with the public one:
+
+            message   = x-webhook-id + "\n" + x-webhook-timestamp + "\n" + raw body
+            signature = RSA-SHA256 (PKCS#1 v1.5), base64, as "v1=<base64>"
+
+        Verify the **raw** bytes: decoding and re-encoding the JSON changes them
+        and the signature will not match. The engine does not refuse old
+        deliveries — you enforce the time tolerance, five minutes being the usual
+        choice, or a captured delivery could be replayed forever.
+
+        `data.id` is stable: use it for idempotency, since a delivery can repeat.
+        Answer `2xx` quickly and do the work afterwards.
+      parameters:
+        - { name: x-webhook-id, in: header, schema: { type: string } }
+        - { name: x-webhook-timestamp, in: header, schema: { type: string, format: date-time } }
+        - { name: x-webhook-signature, in: header, schema: { type: string, examples: ["v1=<base64>"] } }
+        - { name: x-webhook-key-id, in: header, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                type:
+                  type: string
+                  examples:
+                    - biometrics.session.completed
+                    - biometrics.session.review_required
+                    - biometrics.session.expired
+                    - biometrics.enrollment.created
+                data:
+                  type: object
+                  properties:
+                    sessionId: { type: string, format: uuid }
+                    organizationId: { type: string, format: uuid }
+                    subaccountId: { oneOf: [{ type: "null" }, { type: string, format: uuid }] }
+                    environment: { $ref: "#/components/schemas/Environment" }
+                    flow: { $ref: "#/components/schemas/Flow" }
+                    provider: { $ref: "#/components/schemas/ProviderType" }
+                    outcome: { $ref: "#/components/schemas/SessionStatus" }
+                    reasons: { type: array, items: { $ref: "#/components/schemas/Reason" } }
+                    customerId: { oneOf: [{ type: "null" }, { type: string, format: uuid }] }
+                    subjectHmac: { oneOf: [{ type: "null" }, { type: string }] }
+                    modelVersion: { type: string }
+                metadata:
+                  type: object
+                  properties:
+                    timestamp: { type: string, format: date-time }
+                    organizationId: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Received. Anything else is retried by the engine.
