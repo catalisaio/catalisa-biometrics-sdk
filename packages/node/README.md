@@ -156,6 +156,33 @@ try {
 - **5xx and network errors** are retried only for reads (`get`, `list`, `evidence`, `evidence.keys`), with exponential backoff and jitter.
 - **Session creation is never retried on 5xx/network errors**: the server does not deduplicate by `Idempotency-Key` yet, and a retry could open two sessions (and consume quota twice). `idempotencyKey` is still forwarded for forward compatibility.
 
+## Test environment
+
+An API key belongs to one world and says so on every session it opens:
+
+| | `test` (sandbox) | `live` |
+|---|---|---|
+| Engine | Simulated, deterministic | The real one configured for the account |
+| Result | Decided by the CPF ending you send as `subjectRef` | Decided by the engine |
+| Allowance | Not spent | Spent |
+| Billing | Never billed | Billed |
+| Visibility | A test key only reads test sessions; a live key only reads live ones | |
+
+A test key needs no engine configured, so you can integrate on day one. The
+envelope and the `session.completed` payload carry `environment`, which is how a
+handler tells a rehearsal from the real thing:
+
+```ts
+if (envelope.environment === 'test') return  // nothing to settle for a rehearsal
+```
+
+Endings that drive the sandbox result: `…-25` (or any other) approves, `…-11`
+comes back inconclusive for human review, `…-55` asks for a second attempt and
+then approves, `…-66` fails as an engine error, `…-00`, `…-33` and `…-44` reject
+by face match, liveness and continuity.
+
+Servers older than the sandbox omit `environment`; treat it as `live`.
+
 ## Subaccounts
 
 With an organization key, pass `subaccountId` to act on behalf of a subaccount; with a subaccount key, requests are bound to it automatically. Envelopes and webhook payloads carry `subaccountId` (`null` for organization sessions) when the server supports subaccounts.

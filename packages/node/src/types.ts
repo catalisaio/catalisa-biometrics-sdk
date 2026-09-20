@@ -190,7 +190,17 @@ export interface SessionEnvelope {
   elapsedMs: number | null
   /** Subaccounts: present when the server supports subaccounts; `null` = organization-level session. */
   subaccountId?: string | null
+  /**
+   * Which world the session was born in, decided by the API key that created it:
+   * `test` is the sandbox (simulated engine, result driven by the CPF ending, no
+   * allowance spent, never billed) and `live` is production. Absent on servers
+   * older than the sandbox — treat it as `live`.
+   */
+  environment?: Environment
 }
+
+/** Sandbox or production. A key is bound to one of them; a session keeps the one it was born in. */
+export type Environment = 'live' | 'test'
 
 /** Envelope returned on creation: `handoff` is always present. */
 export type CreatedSession = SessionEnvelope & { handoff: Handoff }
@@ -297,4 +307,6 @@ export interface SessionCompletedData {
   subjectHmac: string | null
   modelVersion: string
   subaccountId?: string | null
+  /** `test` when the session came from the sandbox — useful to ignore rehearsals in production handlers. */
+  environment?: Environment
 }

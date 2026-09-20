@@ -10,13 +10,14 @@ Step-by-step for the owner to publish the three packages at **0.1.0**. Nothing h
 
 ## 0. Pre-publication checklist
 
-- [ ] **Public base URL is live.** The SDKs default to `https://api.biometrics.catalisa.app/v1`, which has **no DNS record yet** (checked 2026-09-19). Either create the edge route (`api.biometrics.catalisa.app/v1/*` → `biometrics.bb.catalisa.app/biometrics/api/v1/*`) before publishing, or change `DEFAULT_BASE_URL` in `packages/node/src/http.ts` and `packages/python/src/catalisa_biometrics/client.py`.
-- [ ] **CDN origin for the capture page.** Integrators must list their origin in the provider's `allowedEmbedHosts`; confirm the production `captureUrl` host (`BIOMETRICS_PUBLIC_URL`) is the one documented in the guide.
+- [x] **Public base URL is live.** `https://api.biometrics.catalisa.app/v1` is in production and answering (verified 2026-09-19 with the node SDK against the real API: session created, read back, typed 401 and 404).
+- [x] **Capture page host.** Production issues `captureUrl` on `https://biometrics.bb.catalisa.app` (verified 2026-09-19), the host the guide documents for `allowedEmbedHosts`.
 - [ ] **License.** Packages declare MIT (same as `@catalisa/panel-sdk`). Confirm, or change `license` in the three manifests and the `LICENSE` files.
 - [ ] **npm scope.** You are logged in to npm (`npm whoami`) with publish rights on the `@catalisa` scope, with 2FA.
-- [ ] **PyPI.** A PyPI account with an API token for `catalisa-biometrics` (the name is free as of 2026-09-19 — confirm with `pip index versions catalisa-biometrics`).
+- [ ] **PyPI.** A PyPI account with an API token for `catalisa-biometrics` (name still free on 2026-09-19: `pip index versions catalisa-biometrics` finds nothing).
 - [ ] **Repository URL.** When the GitHub repository exists, add `"repository"` to both `package.json` files and `[project.urls] Source` to `pyproject.toml`.
-- [ ] **Subaccounts.** The SDKs handle `QUOTA_EXCEEDED`/`SUBACCOUNT_SUSPENDED` and `X-Subaccount-Id` already; publish only after the subaccounts branch is merged if the guide documents it.
+- [x] **Subaccounts.** Merged and in production (building-blocks-v2#404); the SDKs handle `QUOTA_EXCEEDED`/`SUBACCOUNT_SUSPENDED` and `X-Subaccount-Id`.
+- [x] **Test environment.** The sandbox is in production (building-blocks-v2#408/#409): a `test` key runs the simulated engine, spends no allowance and is never billed. Documented in the node and python READMEs; `environment` is typed in the node envelope.
 - [ ] Everything green (step 1).
 
 ## 1. Verify

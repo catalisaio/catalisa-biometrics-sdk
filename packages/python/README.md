@@ -81,6 +81,29 @@ def webhook():
 - Deduplicate by the body's `id`, not by `x-webhook-id` (it changes on every retry).
 - `verify_webhook(...)` returns a bool; `check_webhook(...)` returns the failure reason.
 
+## Test environment
+
+An API key belongs to one world and says so on every session it opens. A `test`
+key runs the simulated engine, needs no engine configured, spends no allowance
+and is never billed; it also only reads test sessions, and a `live` key only
+reads live ones.
+
+The result of a sandbox session follows the CPF you pass as `subject_ref`:
+`…-25` (or any other) approves, `…-11` comes back inconclusive for human review,
+`…-55` asks for a second attempt and then approves, `…-66` fails as an engine
+error, and `…-00`, `…-33` and `…-44` reject by face match, liveness and
+continuity.
+
+The envelope and the `session.completed` payload carry `environment`, which is
+how a handler tells a rehearsal from the real thing:
+
+```python
+if envelope.get("environment") == "test":
+    return  # nothing to settle for a rehearsal
+```
+
+Servers older than the sandbox omit `environment`; treat it as `live`.
+
 ## Errors
 
 | Class | When |
