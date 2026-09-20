@@ -1,0 +1,48 @@
+# Publishes io.github.catalisaio:catalisa-biometrics to Maven Central.
+#
+# Central is the only registry here that cannot use trusted publishing: it wants
+# a signed artifact, so the workflow carries the GPG key and the portal token as
+# repository secrets. Everything else (npm, NuGet, RubyGems) proves identity
+# with OIDC and stores nothing.
+name: publish-maven
+
+on:
+  push:
+    tags: ["packages/java/v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/java
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          # Writes the settings.xml the portal plugin reads, with the server id
+          # the pom names.
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      # Nothing is published before the suite passes: a version on Central is
+      # permanent — it can be deprecated, never removed.
+      - name: Test
+        run: mvn -B test
+
+      - name: Publish
+        run: mvn -B -Prelease deploy -DskipTests
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

@@ -18,3 +18,4 @@ packages/php/composer.lock
 packages/dotnet/**/bin/
 packages/dotnet/**/obj/
 artifacts/
+packages/java/target/
