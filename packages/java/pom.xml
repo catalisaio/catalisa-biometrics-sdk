@@ -82,6 +82,12 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>3.11.2</version>
+        <configuration>
+          <!-- Checks that every @link resolves, which is what catches a rename;
+               does not demand a @param on a one-line method whose parameter is
+               already named in the sentence above it. -->
+          <doclint>all,-missing</doclint>
+        </configuration>
         <executions>
           <execution>
             <id>attach-javadocs</id>

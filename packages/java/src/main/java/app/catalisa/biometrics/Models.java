@@ -82,7 +82,7 @@ public final class Models {
 
     /**
      * Covers {@code {sessionId}|{attempt}|{bundleHash}|{signedAt}}, signed with
-     * Ed25519 and encoded in base64. {@link Evidence#verify} checks it offline.
+     * Ed25519 and encoded in base64. {@link app.catalisa.biometrics.Evidence#verify} checks it offline.
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record EvidenceSignature(String alg, String keyId, String signedAt, String value) {
